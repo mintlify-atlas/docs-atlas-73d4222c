@@ -1,0 +1,191 @@
+---
+title: Auto-Moderation
+description: API reference for Discord auto-moderation resource endpoints
+---
+
+Auto-moderation allows you to create rules that automatically moderate content in your guild. All auto-moderation endpoints require the `MANAGE_GUILD` permission.
+
+## Available Endpoints
+
+### Create Auto Moderation Rule
+
+Create a new auto-moderation rule.
+
+**POST** `/guilds/:guild/auto-moderation/rules`
+
+```typescript
+import { createAutoModerationRule } from "@discordkit/client";
+
+const rule = await createAutoModerationRule({
+  guild: "123456789",
+  body: {
+    name: "No Spam",
+    eventType: 1, // MESSAGE_SEND
+    triggerType: 3, // SPAM
+    triggerMetadata: {},
+    actions: [
+      {
+        type: 1, // BLOCK_MESSAGE
+        metadata: {}
+      }
+    ],
+    enabled: true,
+    exemptRoles: ["role_id_1", "role_id_2"],
+    exemptChannels: ["channel_id_1", "channel_id_2"]
+  }
+});
+```
+
+**Permissions:** Requires `MANAGE_GUILD` permission.
+
+**Supports Audit Log Reason:** Yes
+
+**Returns:** An auto moderation rule object on success. Fires an Auto Moderation Rule Create Gateway event.
+
+**Exports:**
+- `createAutoModerationRule` - Handler function
+- `createAutoModerationRuleSchema` - Valibot schema for validation
+- `createAutoModerationRuleSafe` - Validated handler
+- `createAutoModerationRuleProcedure` - tRPC procedure (mutation)
+
+---
+
+### Delete Auto Moderation Rule
+
+Delete an auto-moderation rule.
+
+**DELETE** `/guilds/:guild/auto-moderation/rules/:rule`
+
+```typescript
+import { deleteAutoModerationRule } from "@discordkit/client";
+
+await deleteAutoModerationRule({
+  guild: "123456789",
+  rule: "987654321"
+});
+```
+
+**Permissions:** Requires `MANAGE_GUILD` permission.
+
+**Supports Audit Log Reason:** Yes
+
+**Returns:** `204 No Content` on success. Fires an Auto Moderation Rule Delete Gateway event.
+
+**Exports:**
+- `deleteAutoModerationRule` - Handler function
+- `deleteAutoModerationRuleSchema` - Valibot schema for validation
+- `deleteAutoModerationRuleSafe` - Validated handler
+- `deleteAutoModerationRuleProcedure` - tRPC procedure (mutation)
+
+---
+
+### Get Auto Moderation Rule
+
+Get a single auto-moderation rule.
+
+**GET** `/guilds/:guild/auto-moderation/rules/:rule`
+
+```typescript
+import { getAutoModerationRule } from "@discordkit/client";
+
+const rule = await getAutoModerationRule({
+  guild: "123456789",
+  rule: "987654321"
+});
+```
+
+**Permissions:** Requires `MANAGE_GUILD` permission.
+
+**Returns:** An auto moderation rule object.
+
+**Exports:**
+- `getAutoModerationRule` - Handler function
+- `getAutoModerationRuleSchema` - Valibot schema for validation
+- `getAutoModerationRuleSafe` - Validated handler
+- `getAutoModerationRuleProcedure` - tRPC procedure (query)
+- `getAutoModerationRuleQuery` - Query helper
+
+---
+
+### List Auto Moderation Rules for Guild
+
+Get all auto-moderation rules for a guild.
+
+**GET** `/guilds/:guild/auto-moderation/rules`
+
+```typescript
+import { listAutoModerationRulesForGuild } from "@discordkit/client";
+
+const rules = await listAutoModerationRulesForGuild({ guild: "123456789" });
+```
+
+**Permissions:** Requires `MANAGE_GUILD` permission.
+
+**Returns:** A list of auto moderation rule objects for the given guild.
+
+**Exports:**
+- `listAutoModerationRulesForGuild` - Handler function
+- `listAutoModerationRulesForGuildSchema` - Valibot schema for validation
+- `listAutoModerationRulesForGuildSafe` - Validated handler
+- `listAutoModerationRulesForGuildProcedure` - tRPC procedure (query)
+- `listAutoModerationRulesForGuildQuery` - Query helper
+
+---
+
+### Modify Auto Moderation Rule
+
+Modify an existing auto-moderation rule.
+
+**PATCH** `/guilds/:guild/auto-moderation/rules/:rule`
+
+```typescript
+import { modifyAutoModerationRule } from "@discordkit/client";
+
+const rule = await modifyAutoModerationRule({
+  guild: "123456789",
+  rule: "987654321",
+  body: {
+    name: "Updated Rule Name",
+    eventType: 1,
+    triggerMetadata: {},
+    actions: [
+      {
+        type: 2, // SEND_ALERT_MESSAGE
+        metadata: {
+          channelId: "alert_channel_id"
+        }
+      }
+    ],
+    enabled: false,
+    exemptRoles: ["role_id_1"],
+    exemptChannels: ["channel_id_1"]
+  }
+});
+```
+
+**Permissions:** Requires `MANAGE_GUILD` permission.
+
+**Supports Audit Log Reason:** Yes
+
+**Note:** All parameters are optional.
+
+**Returns:** An auto moderation rule object on success. Fires an Auto Moderation Rule Update Gateway event.
+
+**Exports:**
+- `modifyAutoModerationRule` - Handler function
+- `modifyAutoModerationRuleSchema` - Valibot schema for validation
+- `modifyAutoModerationRuleSafe` - Validated handler
+- `modifyAutoModerationRuleProcedure` - tRPC procedure (mutation)
+
+## Procedure Exports
+
+All auto-moderation procedures are also exported as a namespace:
+
+```typescript
+import { moderationProcedures } from "@discordkit/client";
+
+// Access any procedure:
+moderationProcedures.createAutoModerationRuleProcedure
+moderationProcedures.deleteAutoModerationRuleProcedure
+// ... etc
+```

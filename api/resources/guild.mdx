@@ -1,0 +1,1052 @@
+---
+title: 'Guild Resource'
+description: 'API endpoints for managing Discord guilds (servers), members, roles, and channels'
+---
+
+The Guild resource provides comprehensive endpoints to manage Discord guilds (servers), including guild settings, members, roles, channels, bans, integrations, and more.
+
+## Guild Management
+
+### Get Guild
+
+Get the guild object for the given ID.
+
+```typescript
+import { getGuild } from '@discordkit/client';
+
+const guild = await getGuild({
+  id: '123456789',
+  params: { withCounts: true }
+});
+```
+
+**Endpoint:** `GET /guilds/:guild`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `id` (snowflake) - Guild ID
+
+  **Query Parameters:**
+  - `withCounts` (boolean, optional) - Include approximate member and presence counts
+</Accordion>
+
+**Exports:**
+- `getGuild` - Base fetcher function
+- `getGuildSafe` - Validated version
+- `getGuildProcedure` - tRPC-compatible query procedure
+- `getGuildQuery` - TanStack Query function
+- `getGuildSchema` - Valibot input schema
+
+**Returns:** `Guild` object
+
+### Get Guild Preview
+
+Get the guild preview object for the given ID. Requires the guild to be discoverable or the bot to be in the guild.
+
+```typescript
+import { getGuildPreview } from '@discordkit/client';
+
+const preview = await getGuildPreview({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/preview`
+
+**Returns:** `GuildPreview` object
+
+### Create Guild
+
+Create a new guild. Returns a guild object on success.
+
+```typescript
+import { createGuild } from '@discordkit/client';
+
+const guild = await createGuild({
+  body: {
+    name: 'My New Server',
+    icon: 'data:image/png;base64,...',
+    verificationLevel: 1,
+    defaultMessageNotifications: 0
+  }
+});
+```
+
+**Endpoint:** `POST /guilds`
+
+<Accordion title="Parameters">
+  **Body Parameters:**
+  - `name` (string, 2-100 chars) - Guild name
+  - `region` (string, optional, deprecated) - Voice region ID
+  - `icon` (data URI, optional) - Icon image data URI
+  - `verificationLevel` (integer, optional) - Verification level
+  - `defaultMessageNotifications` (integer, optional) - Default notification level
+  - `explicitContentFilter` (integer, optional) - Explicit content filter level
+  - `roles` (array, optional) - New guild roles
+  - `channels` (array, optional) - New guild channels
+  - `afkChannelId` (snowflake, optional) - AFK channel ID
+  - `afkTimeout` (integer, optional) - AFK timeout in seconds
+  - `systemChannelId` (snowflake, optional) - System channel ID
+  - `systemChannelFlags` (integer, optional) - System channel flags
+</Accordion>
+
+<Warning>
+  This endpoint can only be used by bots in less than 10 guilds.
+</Warning>
+
+**Returns:** `Guild` object
+
+### Modify Guild
+
+Modify a guild's settings.
+
+```typescript
+import { modifyGuild } from '@discordkit/client';
+
+const updated = await modifyGuild({
+  id: '123456789',
+  body: {
+    name: 'Updated Server Name',
+    description: 'A cool community server',
+    verificationLevel: 2
+  }
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `id` (snowflake) - Guild ID
+
+  **Body Parameters (all optional):**
+  - `name` (string, 2-100 chars) - Guild name
+  - `region` (string, deprecated) - Voice region
+  - `verificationLevel` (integer) - Verification level
+  - `defaultMessageNotifications` (integer) - Default notification level
+  - `explicitContentFilter` (integer) - Explicit content filter
+  - `afkChannelId` (snowflake) - AFK channel ID
+  - `afkTimeout` (integer) - AFK timeout seconds
+  - `icon` (data URI) - Guild icon
+  - `ownerId` (snowflake) - Guild owner ID
+  - `splash` (data URI) - Guild splash image
+  - `discoverySplash` (data URI) - Discovery splash image
+  - `banner` (data URI) - Guild banner image
+  - `systemChannelId` (snowflake) - System messages channel
+  - `systemChannelFlags` (integer) - System channel flags
+  - `rulesChannelId` (snowflake) - Rules channel ID
+  - `publicUpdatesChannelId` (snowflake) - Public updates channel
+  - `preferredLocale` (string) - Preferred locale
+  - `features` (array) - Enabled guild features
+  - `description` (string) - Guild description
+  - `premiumProgressBarEnabled` (boolean) - Show boost progress bar
+  - `safetyAlertsChannelId` (snowflake) - Safety alerts channel
+</Accordion>
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Returns:** `Guild` object
+
+### Delete Guild
+
+Delete a guild permanently. User must be owner.
+
+```typescript
+import { deleteGuild } from '@discordkit/client';
+
+await deleteGuild({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `DELETE /guilds/:guild`
+
+**Returns:** `204 No Content`
+
+---
+
+## Channels
+
+### Get Guild Channels
+
+Get a list of guild channels.
+
+```typescript
+import { getGuildChannels } from '@discordkit/client';
+
+const channels = await getGuildChannels({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/channels`
+
+**Returns:** Array of `Channel` objects
+
+### Create Guild Channel
+
+Create a new channel in the guild.
+
+```typescript
+import { createGuildChannel } from '@discordkit/client';
+
+const channel = await createGuildChannel({
+  id: '123456789',
+  body: {
+    name: 'general',
+    type: 0, // GUILD_TEXT
+    topic: 'General discussion',
+    rateLimitPerUser: 5
+  }
+});
+```
+
+**Endpoint:** `POST /guilds/:guild/channels`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `id` (snowflake) - Guild ID
+
+  **Body Parameters:**
+  - `name` (string, 1-100 chars) - Channel name
+  - `type` (integer, optional) - Channel type
+  - `topic` (string, 0-1024 chars, optional) - Channel topic
+  - `bitrate` (integer, optional) - Voice bitrate
+  - `userLimit` (integer, optional) - Voice user limit
+  - `rateLimitPerUser` (integer, optional) - Slowmode seconds
+  - `position` (integer, optional) - Channel position
+  - `permissionOverwrites` (array, optional) - Permission overwrites
+  - `parentId` (snowflake, optional) - Parent category ID
+  - `nsfw` (boolean, optional) - NSFW flag
+  - `rtcRegion` (string, optional) - Voice region
+  - `videoQualityMode` (integer, optional) - Video quality mode
+  - `defaultAutoArchiveDuration` (integer, optional) - Thread auto-archive duration
+  - `defaultReactionEmoji` (object, optional) - Default reaction (forum)
+  - `availableTags` (array, optional) - Forum tags
+  - `defaultSortOrder` (integer, optional) - Forum sort order
+  - `defaultForumLayout` (integer, optional) - Forum layout
+  - `defaultThreadRateLimitPerUser` (integer, optional) - Thread slowmode
+</Accordion>
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Returns:** `Channel` object
+
+### Modify Guild Channel Positions
+
+Modify the positions of channels in the guild.
+
+```typescript
+import { modifyGuildChannelPositions } from '@discordkit/client';
+
+await modifyGuildChannelPositions({
+  id: '123456789',
+  body: [
+    { id: 'channel-1', position: 0 },
+    { id: 'channel-2', position: 1 }
+  ]
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild/channels`
+
+**Returns:** `204 No Content`
+
+### List Active Guild Threads
+
+Get all active threads in the guild.
+
+```typescript
+import { listActiveGuildThreads } from '@discordkit/client';
+
+const result = await listActiveGuildThreads({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/threads/active`
+
+**Returns:** Object with `threads` and `members` arrays
+
+---
+
+## Members
+
+### Get Guild Member
+
+Get a guild member by user ID.
+
+```typescript
+import { getGuildMember } from '@discordkit/client';
+
+const member = await getGuildMember({
+  guild: '123456789',
+  user: '987654321'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/members/:user`
+
+**Returns:** `Member` object
+
+### List Guild Members
+
+List guild members.
+
+```typescript
+import { listGuildMembers } from '@discordkit/client';
+
+const members = await listGuildMembers({
+  id: '123456789',
+  params: {
+    limit: 100,
+    after: '0'
+  }
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/members`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `id` (snowflake) - Guild ID
+
+  **Query Parameters:**
+  - `limit` (integer, 1-1000, optional) - Max members to return (default: 1)
+  - `after` (snowflake, optional) - Get members after this user ID
+</Accordion>
+
+**Returns:** Array of `Member` objects
+
+### Search Guild Members
+
+Search guild members by username or nickname.
+
+```typescript
+import { searchGuildMembers } from '@discordkit/client';
+
+const members = await searchGuildMembers({
+  id: '123456789',
+  params: {
+    query: 'john',
+    limit: 10
+  }
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/members/search`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `id` (snowflake) - Guild ID
+
+  **Query Parameters:**
+  - `query` (string, 1-100 chars) - Search query
+  - `limit` (integer, 1-1000, optional) - Max members to return (default: 1)
+</Accordion>
+
+**Returns:** Array of `Member` objects
+
+### Add Guild Member
+
+Add a user to the guild using an OAuth2 access token.
+
+```typescript
+import { addGuildMember } from '@discordkit/client';
+
+const member = await addGuildMember({
+  guild: '123456789',
+  user: '987654321',
+  body: {
+    accessToken: 'oauth2-access-token',
+    nick: 'Cool Nickname',
+    roles: ['role-id-1', 'role-id-2']
+  }
+});
+```
+
+**Endpoint:** `PUT /guilds/:guild/members/:user`
+
+**Returns:** `Member` object or `204 No Content` if already in guild
+
+### Modify Guild Member
+
+Modify attributes of a guild member.
+
+```typescript
+import { modifyGuildMember } from '@discordkit/client';
+
+const updated = await modifyGuildMember({
+  guild: '123456789',
+  user: '987654321',
+  body: {
+    nick: 'New Nickname',
+    roles: ['role-id'],
+    mute: false,
+    deaf: false
+  }
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild/members/:user`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+  - `user` (snowflake) - User ID
+
+  **Body Parameters (all optional):**
+  - `nick` (string) - Set user's nickname (requires `MANAGE_NICKNAMES`)
+  - `roles` (array) - Array of role IDs (requires `MANAGE_ROLES`)
+  - `mute` (boolean) - Mute in voice channels (requires `MUTE_MEMBERS`)
+  - `deaf` (boolean) - Deafen in voice channels (requires `DEAFEN_MEMBERS`)
+  - `channelId` (snowflake) - Move to voice channel (requires `MOVE_MEMBERS`)
+  - `communicationDisabledUntil` (timestamp) - Timeout until (requires `MODERATE_MEMBERS`)
+  - `flags` (integer) - Guild member flags
+</Accordion>
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header. All parameters are optional and nullable.
+</Note>
+
+**Returns:** `Member` object
+
+### Modify Current Member
+
+Modify the current user's guild member object.
+
+```typescript
+import { modifyCurrentMember } from '@discordkit/client';
+
+const updated = await modifyCurrentMember({
+  guild: '123456789',
+  body: {
+    nick: 'My New Nickname'
+  }
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild/members/@me`
+
+**Returns:** `Member` object
+
+### Remove Guild Member
+
+Remove (kick) a member from the guild.
+
+```typescript
+import { removeGuildMember } from '@discordkit/client';
+
+await removeGuildMember({
+  guild: '123456789',
+  user: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /guilds/:guild/members/:user`
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Returns:** `204 No Content`
+
+### Add Guild Member Role
+
+Add a role to a guild member.
+
+```typescript
+import { addGuildMemberRole } from '@discordkit/client';
+
+await addGuildMemberRole({
+  guild: '123456789',
+  user: '987654321',
+  role: '555555555'
+});
+```
+
+**Endpoint:** `PUT /guilds/:guild/members/:user/roles/:role`
+
+**Returns:** `204 No Content`
+
+### Remove Guild Member Role
+
+Remove a role from a guild member.
+
+```typescript
+import { removeGuildMemberRole } from '@discordkit/client';
+
+await removeGuildMemberRole({
+  guild: '123456789',
+  user: '987654321',
+  role: '555555555'
+});
+```
+
+**Endpoint:** `DELETE /guilds/:guild/members/:user/roles/:role`
+
+**Returns:** `204 No Content`
+
+---
+
+## Roles
+
+### Get Guild Roles
+
+Get a list of role objects for the guild.
+
+```typescript
+import { getGuildRoles } from '@discordkit/client';
+
+const roles = await getGuildRoles({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/roles`
+
+**Returns:** Array of `Role` objects
+
+### Get Guild Role
+
+Get a specific guild role.
+
+```typescript
+import { getGuildRole } from '@discordkit/client';
+
+const role = await getGuildRole({
+  guild: '123456789',
+  role: '987654321'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/roles/:role`
+
+**Returns:** `Role` object
+
+### Create Guild Role
+
+Create a new role for the guild.
+
+```typescript
+import { createGuildRole } from '@discordkit/client';
+
+const role = await createGuildRole({
+  id: '123456789',
+  body: {
+    name: 'Moderator',
+    permissions: '8',
+    color: 0x3498db,
+    hoist: true,
+    mentionable: true
+  }
+});
+```
+
+**Endpoint:** `POST /guilds/:guild/roles`
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Returns:** `Role` object
+
+### Modify Guild Role
+
+Modify a guild role.
+
+```typescript
+import { modifyGuildRole } from '@discordkit/client';
+
+const updated = await modifyGuildRole({
+  guild: '123456789',
+  role: '987654321',
+  body: {
+    name: 'Senior Moderator',
+    color: 0xe74c3c
+  }
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild/roles/:role`
+
+**Returns:** `Role` object
+
+### Modify Guild Role Positions
+
+Modify the positions of roles in the guild.
+
+```typescript
+import { modifyGuildRolePositions } from '@discordkit/client';
+
+const roles = await modifyGuildRolePositions({
+  id: '123456789',
+  body: [
+    { id: 'role-1', position: 2 },
+    { id: 'role-2', position: 1 }
+  ]
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild/roles`
+
+**Returns:** Array of `Role` objects
+
+### Delete Guild Role
+
+Delete a guild role.
+
+```typescript
+import { deleteGuildRole } from '@discordkit/client';
+
+await deleteGuildRole({
+  guild: '123456789',
+  role: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /guilds/:guild/roles/:role`
+
+**Returns:** `204 No Content`
+
+---
+
+## Bans
+
+### Get Guild Bans
+
+Get a list of ban objects for the guild.
+
+```typescript
+import { getGuildBans } from '@discordkit/client';
+
+const bans = await getGuildBans({
+  id: '123456789',
+  params: {
+    limit: 100,
+    after: '0'
+  }
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/bans`
+
+**Returns:** Array of `Ban` objects
+
+### Get Guild Ban
+
+Get a ban object for a specific user.
+
+```typescript
+import { getGuildBan } from '@discordkit/client';
+
+const ban = await getGuildBan({
+  guild: '123456789',
+  user: '987654321'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/bans/:user`
+
+**Returns:** `Ban` object
+
+### Create Guild Ban
+
+Ban a user from the guild.
+
+```typescript
+import { createGuildBan } from '@discordkit/client';
+
+await createGuildBan({
+  guild: '123456789',
+  user: '987654321',
+  body: {
+    deleteMessageSeconds: 86400 // Delete messages from last day
+  }
+});
+```
+
+**Endpoint:** `PUT /guilds/:guild/bans/:user`
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Returns:** `204 No Content`
+
+### Bulk Guild Ban
+
+Ban multiple users from the guild.
+
+```typescript
+import { bulkGuildBan } from '@discordkit/client';
+
+const result = await bulkGuildBan({
+  id: '123456789',
+  body: {
+    userIds: ['user-1', 'user-2', 'user-3'],
+    deleteMessageSeconds: 86400
+  }
+});
+```
+
+**Endpoint:** `POST /guilds/:guild/bulk-ban`
+
+**Returns:** Object with `bannedUsers` and `failedUsers` arrays
+
+### Remove Guild Ban
+
+Remove the ban for a user.
+
+```typescript
+import { removeGuildBan } from '@discordkit/client';
+
+await removeGuildBan({
+  guild: '123456789',
+  user: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /guilds/:guild/bans/:user`
+
+**Returns:** `204 No Content`
+
+---
+
+## Prune
+
+### Get Guild Prune Count
+
+Get the number of members that would be removed in a prune operation.
+
+```typescript
+import { getGuildPruneCount } from '@discordkit/client';
+
+const result = await getGuildPruneCount({
+  id: '123456789',
+  params: {
+    days: 7,
+    includeRoles: ['role-id-1']
+  }
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/prune`
+
+**Returns:** Object with `pruned` count
+
+### Begin Guild Prune
+
+Begin a prune operation to remove inactive members.
+
+```typescript
+import { beginGuildPrune } from '@discordkit/client';
+
+const result = await beginGuildPrune({
+  id: '123456789',
+  body: {
+    days: 7,
+    computePruneCount: true,
+    includeRoles: []
+  }
+});
+```
+
+**Endpoint:** `POST /guilds/:guild/prune`
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Returns:** Object with `pruned` count (if computed)
+
+---
+
+## Other Settings
+
+### Get Guild Invites
+
+Get a list of invite objects for the guild.
+
+```typescript
+import { getGuildInvites } from '@discordkit/client';
+
+const invites = await getGuildInvites({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/invites`
+
+**Returns:** Array of `Invite` objects with metadata
+
+### Get Guild Integrations
+
+Get a list of integration objects for the guild.
+
+```typescript
+import { getGuildIntegrations } from '@discordkit/client';
+
+const integrations = await getGuildIntegrations({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/integrations`
+
+**Returns:** Array of `Integration` objects
+
+### Delete Guild Integration
+
+Delete an integration from the guild.
+
+```typescript
+import { deleteGuildIntegration } from '@discordkit/client';
+
+await deleteGuildIntegration({
+  guild: '123456789',
+  integration: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /guilds/:guild/integrations/:integration`
+
+**Returns:** `204 No Content`
+
+### Get Guild Widget Settings
+
+Get the guild widget settings.
+
+```typescript
+import { getGuildWidgetSettings } from '@discordkit/client';
+
+const settings = await getGuildWidgetSettings({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/widget`
+
+**Returns:** `GuildWidgetSettings` object
+
+### Modify Guild Widget
+
+Modify the guild widget.
+
+```typescript
+import { modifyGuildWidget } from '@discordkit/client';
+
+const widget = await modifyGuildWidget({
+  id: '123456789',
+  body: {
+    enabled: true,
+    channelId: '987654321'
+  }
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild/widget`
+
+**Returns:** `GuildWidget` object
+
+### Get Guild Widget
+
+Get the guild widget object.
+
+```typescript
+import { getGuildWidget } from '@discordkit/client';
+
+const widget = await getGuildWidget({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/widget.json`
+
+**Returns:** `GuildWidget` object
+
+### Get Guild Widget Image
+
+Get a PNG image widget for the guild.
+
+```typescript
+import { getGuildWidgetImage } from '@discordkit/client';
+
+const imageUrl = await getGuildWidgetImage({
+  id: '123456789',
+  params: { style: 'banner1' }
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/widget.png`
+
+**Returns:** PNG image
+
+### Get Guild Vanity URL
+
+Get the guild's vanity URL code.
+
+```typescript
+import { getGuildVanityURL } from '@discordkit/client';
+
+const vanity = await getGuildVanityURL({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/vanity-url`
+
+**Returns:** Partial `Invite` object with code and uses
+
+### Get Guild Voice Regions
+
+Get available voice regions for the guild.
+
+```typescript
+import { getGuildVoiceRegions } from '@discordkit/client';
+
+const regions = await getGuildVoiceRegions({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/regions`
+
+**Returns:** Array of `VoiceRegion` objects
+
+### Get Guild Welcome Screen
+
+Get the guild's welcome screen.
+
+```typescript
+import { getGuildWelcomeScreen } from '@discordkit/client';
+
+const welcomeScreen = await getGuildWelcomeScreen({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/welcome-screen`
+
+**Returns:** `WelcomeScreen` object
+
+### Modify Guild Welcome Screen
+
+Modify the guild's welcome screen.
+
+```typescript
+import { modifyGuildWelcomeScreen } from '@discordkit/client';
+
+const updated = await modifyGuildWelcomeScreen({
+  id: '123456789',
+  body: {
+    enabled: true,
+    description: 'Welcome to our server!',
+    welcomeChannels: [
+      {
+        channelId: '123',
+        description: 'Read the rules',
+        emojiId: null,
+        emojiName: '👋'
+      }
+    ]
+  }
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild/welcome-screen`
+
+**Returns:** `WelcomeScreen` object
+
+### Get Guild Onboarding
+
+Get the guild's onboarding settings.
+
+```typescript
+import { getGuildOnboarding } from '@discordkit/client';
+
+const onboarding = await getGuildOnboarding({
+  id: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/onboarding`
+
+**Returns:** `GuildOnboarding` object
+
+### Modify Guild Onboarding
+
+Modify the guild's onboarding configuration.
+
+```typescript
+import { modifyGuildOnboarding } from '@discordkit/client';
+
+const updated = await modifyGuildOnboarding({
+  id: '123456789',
+  body: {
+    prompts: [],
+    defaultChannelIds: ['channel-id'],
+    enabled: true
+  }
+});
+```
+
+**Endpoint:** `PUT /guilds/:guild/onboarding`
+
+**Returns:** `GuildOnboarding` object
+
+### Modify Guild MFA Level
+
+Modify the guild's MFA level.
+
+```typescript
+import { modifyGuildMFALevel } from '@discordkit/client';
+
+const result = await modifyGuildMFALevel({
+  id: '123456789',
+  body: {
+    level: 1 // ELEVATED
+  }
+});
+```
+
+**Endpoint:** `POST /guilds/:guild/mfa`
+
+**Returns:** MFA level
+
+### Modify Guild Incident Actions
+
+Modify the guild's incident actions.
+
+```typescript
+import { modifyGuildIncidentActions } from '@discordkit/client';
+
+const result = await modifyGuildIncidentActions({
+  id: '123456789',
+  body: {
+    invitesDisabledUntil: null,
+    dmsDisabledUntil: null
+  }
+});
+```
+
+**Endpoint:** `PUT /guilds/:guild/incident-actions`
+
+**Returns:** `IncidentActions` object
+
+---
+
+## Procedures Export
+
+All guild procedures are available as a grouped export:
+
+```typescript
+import { guildProcedures } from '@discordkit/client';
+
+// Access any procedure
+const procedure = guildProcedures.getGuildProcedure;
+```

@@ -1,0 +1,646 @@
+---
+title: '@discordkit/client'
+description: Complete Discord REST API client with typed endpoints
+---
+
+The `@discordkit/client` package provides a complete, type-safe interface to Discord's REST API. Each endpoint is exported with multiple variants (base function, schema, safe function, procedure, and query) following the [export patterns](/api/overview#export-patterns) described in the overview.
+
+## Installation
+
+```bash
+npm install @discordkit/client valibot
+```
+
+<Note>
+  DiscordKit uses [Valibot](https://valibot.dev/) for schema validation and requires it as a peer dependency.
+</Note>
+
+## Initialization
+
+Before making requests, initialize the Discord session with your bot token:
+
+```typescript
+import { discord } from '@discordkit/client';
+
+// Initialize with bot token
+discord.setToken('Bot YOUR_BOT_TOKEN_HERE');
+
+// Or with Bearer token for OAuth2
+discord.setToken('Bearer YOUR_OAUTH_TOKEN');
+```
+
+## Core Export
+
+### discord
+
+The main `DiscordSession` instance that manages authentication and rate limiting.
+
+<ParamField path="discord" type="DiscordSession">
+  Global Discord API session manager. Re-exported from `@discordkit/core`.
+</ParamField>
+
+**Methods:**
+
+<ResponseField name="setToken" type="(token: string) => DiscordSession">
+  Set the authentication token. Must be prefixed with `Bot ` or `Bearer `.
+</ResponseField>
+
+<ResponseField name="clearSession" type="() => DiscordSession">
+  Clear authentication and reset rate limit tracking.
+</ResponseField>
+
+<ResponseField name="getSession" type="() => string">
+  Get the current authentication token. Throws if not set.
+</ResponseField>
+
+<ResponseField name="queueRequest" type="(resource: URL, method: string, body?: string) => Promise<Response>">
+  Queue an HTTP request with automatic rate limiting.
+</ResponseField>
+
+<ResponseField name="getQueueSize" type="() => number">
+  Get the current number of queued requests.
+</ResponseField>
+
+**Properties:**
+
+<ResponseField name="ready" type="boolean">
+  Returns `true` if an auth token is set.
+</ResponseField>
+
+<ResponseField name="endpoint" type="string" default="https://discord.com/api/v10/">
+  Base URL for Discord API requests.
+</ResponseField>
+
+<ResponseField name="maxRetries" type="number" default={5}>
+  Maximum retry attempts for rate-limited requests.
+</ResponseField>
+
+## Module Exports
+
+The client package exports endpoints organized by resource type. Each module follows the same [export patterns](/api/overview#export-patterns).
+
+### Application
+
+```typescript
+import {
+  getCurrentApplication,
+  getCurrentApplicationSchema,
+  getCurrentApplicationSafe,
+  getCurrentApplicationProcedure,
+  getCurrentApplicationQuery,
+  modifyCurrentApplication,
+  // ... other application endpoints
+} from '@discordkit/client';
+```
+
+### Application Commands
+
+```typescript
+import {
+  getGlobalApplicationCommands,
+  createGlobalApplicationCommand,
+  editGlobalApplicationCommand,
+  deleteGlobalApplicationCommand,
+  bulkOverwriteGlobalApplicationCommands,
+  // ... other command endpoints
+} from '@discordkit/client';
+```
+
+### Application Role Connection
+
+```typescript
+import {
+  getApplicationRoleConnectionMetadata,
+  updateApplicationRoleConnectionMetadata,
+} from '@discordkit/client';
+```
+
+### Audit Log
+
+```typescript
+import {
+  getGuildAuditLog,
+  getGuildAuditLogSchema,
+  getGuildAuditLogSafe,
+  getGuildAuditLogProcedure,
+  getGuildAuditLogQuery,
+} from '@discordkit/client';
+```
+
+### Auto Moderation
+
+```typescript
+import {
+  listAutoModerationRules,
+  getAutoModerationRule,
+  createAutoModerationRule,
+  modifyAutoModerationRule,
+  deleteAutoModerationRule,
+} from '@discordkit/client';
+```
+
+### Channel
+
+```typescript
+import {
+  getChannel,
+  getChannelSchema,
+  getChannelSafe,
+  getChannelProcedure,
+  getChannelQuery,
+  modifyChannel,
+  deleteChannel,
+  deleteChannelPermission,
+  editChannelPermissions,
+  getChannelInvites,
+  createChannelInvite,
+  followAnnouncementChannel,
+  triggerTypingIndicator,
+  // Thread operations
+  startThreadFromMessage,
+  startThreadWithoutMessage,
+  startThreadInForumOrMediaChannel,
+  joinThread,
+  leaveThread,
+  addThreadMember,
+  removeThreadMember,
+  getThreadMember,
+  listThreadMembers,
+  listPublicArchivedThreads,
+  listPrivateArchivedThreads,
+  listJoinedPrivateArchivedThreads,
+  // Group DM operations
+  groupDMAddRecipient,
+  groupDMRemoveRecipient,
+} from '@discordkit/client';
+```
+
+### Emoji
+
+```typescript
+import {
+  listGuildEmojis,
+  getGuildEmoji,
+  createGuildEmoji,
+  modifyGuildEmoji,
+  deleteGuildEmoji,
+} from '@discordkit/client';
+```
+
+### Entitlements
+
+```typescript
+import {
+  listEntitlements,
+  createTestEntitlement,
+  deleteTestEntitlement,
+} from '@discordkit/client';
+```
+
+### Guild
+
+```typescript
+import {
+  // Guild operations
+  getGuild,
+  getGuildSchema,
+  getGuildSafe,
+  getGuildProcedure,
+  getGuildQuery,
+  getGuildPreview,
+  createGuild,
+  modifyGuild,
+  deleteGuild,
+  getGuildChannels,
+  createGuildChannel,
+  modifyGuildChannelPositions,
+  // Member operations
+  listGuildMembers,
+  searchGuildMembers,
+  getGuildMember,
+  addGuildMember,
+  modifyGuildMember,
+  modifyCurrentMember,
+  removeGuildMember,
+  addGuildMemberRole,
+  removeGuildMemberRole,
+  // Ban operations
+  getGuildBans,
+  getGuildBan,
+  createGuildBan,
+  removeGuildBan,
+  bulkGuildBan,
+  // Role operations
+  getGuildRoles,
+  getGuildRole,
+  createGuildRole,
+  modifyGuildRole,
+  modifyGuildRolePositions,
+  deleteGuildRole,
+  // Prune operations
+  getGuildPruneCount,
+  beginGuildPrune,
+  // Widget operations
+  getGuildWidget,
+  getGuildWidgetSettings,
+  modifyGuildWidget,
+  getGuildWidgetImage,
+  // Other guild operations
+  getGuildVoiceRegions,
+  getGuildInvites,
+  getGuildIntegrations,
+  deleteGuildIntegration,
+  getGuildVanityURL,
+  getGuildWelcomeScreen,
+  modifyGuildWelcomeScreen,
+  getGuildOnboarding,
+  modifyGuildOnboarding,
+  modifyGuildMFALevel,
+  modifyGuildIncidentActions,
+  listActiveGuildThreads,
+} from '@discordkit/client';
+```
+
+### Interactions
+
+```typescript
+import {
+  createInteractionResponse,
+  getOriginalInteractionResponse,
+  editOriginalInteractionResponse,
+  deleteOriginalInteractionResponse,
+  createFollowupMessage,
+  getFollowupMessage,
+  editFollowupMessage,
+  deleteFollowupMessage,
+} from '@discordkit/client';
+```
+
+### Invite
+
+```typescript
+import {
+  getInvite,
+  getInviteSchema,
+  getInviteSafe,
+  getInviteProcedure,
+  getInviteQuery,
+  deleteInvite,
+} from '@discordkit/client';
+```
+
+### Lobby
+
+```typescript
+import {
+  searchLobbies,
+  createLobby,
+  getLobby,
+  updateLobby,
+  deleteLobby,
+  connectToLobby,
+  sendLobbyData,
+} from '@discordkit/client';
+```
+
+### Messages
+
+```typescript
+import {
+  getChannelMessages,
+  getChannelMessage,
+  createMessage,
+  createMessageSchema,
+  createMessageSafe,
+  createMessageProcedure,
+  crosspostMessage,
+  createReaction,
+  deleteOwnReaction,
+  deleteUserReaction,
+  getReactions,
+  deleteAllReactions,
+  deleteAllReactionsForEmoji,
+  editMessage,
+  deleteMessage,
+  bulkDeleteMessages,
+  pinMessage,
+  unpinMessage,
+  getPinnedMessages,
+} from '@discordkit/client';
+```
+
+### Poll
+
+```typescript
+import {
+  getPollAnswerVoters,
+  endPoll,
+} from '@discordkit/client';
+```
+
+### SKU
+
+```typescript
+import {
+  listSKUs,
+  getSKU,
+} from '@discordkit/client';
+```
+
+### Soundboard
+
+```typescript
+import {
+  listSoundboardSounds,
+  getSoundboardSound,
+  createSoundboardSound,
+  modifySoundboardSound,
+  deleteSoundboardSound,
+  sendSoundboardSound,
+} from '@discordkit/client';
+```
+
+### Stage
+
+```typescript
+import {
+  createStageInstance,
+  getStageInstance,
+  modifyStageInstance,
+  deleteStageInstance,
+} from '@discordkit/client';
+```
+
+### Sticker
+
+```typescript
+import {
+  getSticker,
+  listGuildStickers,
+  getGuildSticker,
+  createGuildSticker,
+  modifyGuildSticker,
+  deleteGuildSticker,
+} from '@discordkit/client';
+```
+
+### Subscription
+
+```typescript
+import {
+  listSKUSubscriptions,
+  getSKUSubscription,
+} from '@discordkit/client';
+```
+
+### Template
+
+```typescript
+import {
+  getTemplate,
+  createGuildFromTemplate,
+  getGuildTemplates,
+  createGuildTemplate,
+  syncGuildTemplate,
+  modifyGuildTemplate,
+  deleteGuildTemplate,
+} from '@discordkit/client';
+```
+
+### User
+
+```typescript
+import {
+  getCurrentUser,
+  getCurrentUserSchema,
+  getCurrentUserSafe,
+  getCurrentUserProcedure,
+  getCurrentUserQuery,
+  getUser,
+  getUserSchema,
+  getUserSafe,
+  getUserProcedure,
+  getUserQuery,
+  modifyCurrentUser,
+  getCurrentUserGuilds,
+  getCurrentUserGuildMember,
+  leaveGuild,
+  createDM,
+  createGroupDM,
+  getUserConnections,
+  getCurrentUserApplicationRoleConnection,
+  updateCurrentUserApplicationRoleConnection,
+} from '@discordkit/client';
+```
+
+### Voice
+
+```typescript
+import {
+  listVoiceRegions,
+} from '@discordkit/client';
+```
+
+### Webhook
+
+```typescript
+import {
+  createWebhook,
+  getChannelWebhooks,
+  getGuildWebhooks,
+  getWebhook,
+  getWebhookWithToken,
+  modifyWebhook,
+  modifyWebhookWithToken,
+  deleteWebhook,
+  deleteWebhookWithToken,
+  executeWebhook,
+  executeSlackCompatibleWebhook,
+  executeGitHubCompatibleWebhook,
+  getWebhookMessage,
+  editWebhookMessage,
+  deleteWebhookMessage,
+} from '@discordkit/client';
+```
+
+## Grouped Procedures
+
+Import all procedures from a specific resource as a namespace:
+
+```typescript
+import {
+  guildProcedures,
+  userProcedures,
+  channelProcedures,
+  applicationProcedures,
+  applicationRoleConnectionProcedures,
+  auditLogProcedures,
+  autoModerationProcedures,
+  emojiProcedures,
+  eventProcedures,
+  interactionsProcedures,
+  inviteProcedures,
+  lobbyProcedures,
+  pollProcedures,
+  skuProcedures,
+  soundboardProcedures,
+  stageProcedures,
+  stickerProcedures,
+  subscriptionProcedures,
+  templateProcedures,
+  voiceProcedures,
+  webhookProcedures,
+} from '@discordkit/client';
+
+// Or import all procedures at once
+import { allProcedures } from '@discordkit/client';
+```
+
+## Type Definitions
+
+All Discord API types are exported from their respective modules:
+
+```typescript
+import type {
+  Guild,
+  Channel,
+  User,
+  Message,
+  Role,
+  Emoji,
+  // ... many more types
+} from '@discordkit/client';
+```
+
+## Usage Examples
+
+### Basic Request
+
+```typescript
+import { discord, getGuild } from '@discordkit/client';
+
+discord.setToken('Bot YOUR_BOT_TOKEN');
+
+const guild = await getGuild({
+  id: '123456789',
+  params: { withCounts: true }
+});
+
+console.log(guild.name, guild.approximateMemberCount);
+```
+
+### With Runtime Validation
+
+```typescript
+import { discord, getGuildSafe } from '@discordkit/client';
+
+discord.setToken('Bot YOUR_BOT_TOKEN');
+
+// Validates input and output at runtime
+const guild = await getGuildSafe({
+  id: '123456789',
+  params: { withCounts: true }
+});
+```
+
+### With tRPC
+
+```typescript
+import { initTRPC } from '@trpc/server';
+import { getGuildProcedure, createGuildProcedure, discord } from '@discordkit/client';
+
+const t = initTRPC.create();
+
+// Initialize Discord session in context
+export const createContext = () => {
+  discord.setToken('Bot YOUR_BOT_TOKEN');
+  return {};
+};
+
+const appRouter = t.router({
+  getGuild: getGuildProcedure(t.procedure),
+  createGuild: createGuildProcedure(t.procedure),
+});
+
+export type AppRouter = typeof appRouter;
+```
+
+### With React Query
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { getGuildQuery, discord } from '@discordkit/client';
+
+// Initialize once at app startup
+discord.setToken('Bot YOUR_BOT_TOKEN');
+
+function GuildDisplay({ guildId }: { guildId: string }) {
+  const { data: guild, isLoading } = useQuery({
+    queryKey: ['guild', guildId],
+    queryFn: getGuildQuery({ id: guildId, params: { withCounts: true } })
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+  return <div>{guild?.name}</div>;
+}
+```
+
+### Creating a Message
+
+```typescript
+import { discord, createMessage } from '@discordkit/client';
+
+discord.setToken('Bot YOUR_BOT_TOKEN');
+
+const message = await createMessage({
+  channel: '987654321',
+  body: {
+    content: 'Hello, world!',
+    embeds: [{
+      title: 'Embed Title',
+      description: 'Embed description',
+      color: 0x00ff00
+    }]
+  }
+});
+```
+
+## Rate Limiting
+
+The `discord` session automatically handles rate limiting:
+
+- **Global rate limit**: 50 requests per second
+- **Per-route rate limits**: Automatically tracked via Discord headers
+- **429 responses**: Automatically retried with exponential backoff
+- **Request queuing**: Requests are queued and processed when rate limits allow
+
+You can monitor the queue size:
+
+```typescript
+import { discord } from '@discordkit/client';
+
+const queueSize = discord.getQueueSize();
+console.log(`Queued requests: ${queueSize}`);
+```
+
+## Error Handling
+
+```typescript
+import { discord, getGuild } from '@discordkit/client';
+
+discord.setToken('Bot YOUR_BOT_TOKEN');
+
+try {
+  const guild = await getGuild({ id: '123456789' });
+} catch (error) {
+  if (error instanceof Error) {
+    console.error('Failed to fetch guild:', error.message);
+  }
+}
+```
+
+## Related
+
+- [API Overview](/api/overview) - Understanding export patterns
+- [Core Package](/api/core) - Core utilities and validators
+- [Discord API Documentation](https://discord.com/developers/docs/intro)

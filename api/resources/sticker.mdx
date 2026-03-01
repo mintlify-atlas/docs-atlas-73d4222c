@@ -1,0 +1,244 @@
+---
+title: Sticker
+description: API reference for Discord sticker resource endpoints
+---
+
+Stickers are expressive images that can be sent in messages. This resource provides endpoints to manage guild stickers and retrieve sticker information.
+
+## Available Endpoints
+
+### Create Guild Sticker
+
+Create a new sticker for the guild.
+
+**POST** `/guilds/:guild/stickers`
+
+```typescript
+import { createGuildSticker } from "@discordkit/client";
+
+const sticker = await createGuildSticker({
+  guild: "123456789",
+  body: {
+    name: "My Sticker",
+    description: "A cool sticker",
+    tags: "emoji, fun",
+    file: /* PNG, APNG, or Lottie JSON file, max 500 KB */
+  }
+});
+```
+
+**Permissions:** Requires `MANAGE_GUILD_EXPRESSIONS` permission.
+
+**Supports Audit Log Reason:** Yes
+
+**File Requirements:**
+- Must be PNG, APNG, or Lottie JSON file
+- Maximum 500 KB
+- Animated stickers constrained to 5 seconds
+- Size constrained to 320 x 320 pixels
+
+**Note:** Lottie stickers can only be uploaded on guilds with `VERIFIED` and/or `PARTNERED` features. Every guild has five free sticker slots by default, with more slots granted per Boost level.
+
+**Returns:** The new sticker object on success. Fires a Guild Stickers Update Gateway event.
+
+**Exports:**
+- `createGuildSticker` - Handler function
+- `createGuildStickerSchema` - Valibot schema for validation
+- `createGuildStickerSafe` - Validated handler
+- `createGuildStickerProcedure` - tRPC procedure (mutation)
+
+---
+
+### Delete Guild Sticker
+
+Delete a guild sticker.
+
+**DELETE** `/guilds/:guild/stickers/:sticker`
+
+```typescript
+import { deleteGuildSticker } from "@discordkit/client";
+
+await deleteGuildSticker({
+  guild: "123456789",
+  sticker: "987654321"
+});
+```
+
+**Permissions:** Requires `MANAGE_GUILD_EXPRESSIONS` permission.
+
+**Supports Audit Log Reason:** Yes
+
+**Returns:** `204 No Content` on success. Fires a Guild Stickers Update Gateway event.
+
+**Exports:**
+- `deleteGuildSticker` - Handler function
+- `deleteGuildStickerSchema` - Valibot schema for validation
+- `deleteGuildStickerSafe` - Validated handler
+- `deleteGuildStickerProcedure` - tRPC procedure (mutation)
+
+---
+
+### Get Guild Sticker
+
+Get a sticker from a guild.
+
+**GET** `/guilds/:guild/stickers/:sticker`
+
+```typescript
+import { getGuildSticker } from "@discordkit/client";
+
+const sticker = await getGuildSticker({
+  guild: "123456789",
+  sticker: "987654321"
+});
+```
+
+**Returns:** A sticker object for the given guild and sticker IDs. Includes the `user` field if the bot has the `MANAGE_GUILD_EXPRESSIONS` permission.
+
+**Exports:**
+- `getGuildSticker` - Handler function
+- `getGuildStickerSchema` - Valibot schema for validation
+- `getGuildStickerSafe` - Validated handler
+- `getGuildStickerProcedure` - tRPC procedure (query)
+- `getGuildStickerQuery` - Query helper
+
+---
+
+### Get Sticker
+
+Get a sticker by ID.
+
+**GET** `/stickers/:sticker`
+
+```typescript
+import { getSticker } from "@discordkit/client";
+
+const sticker = await getSticker({ sticker: "987654321" });
+```
+
+**Returns:** A sticker object for the given sticker ID.
+
+**Exports:**
+- `getSticker` - Handler function
+- `getStickerSchema` - Valibot schema for validation
+- `getStickerSafe` - Validated handler
+- `getStickerProcedure` - tRPC procedure (query)
+- `getStickerQuery` - Query helper
+
+---
+
+### Get Sticker Pack
+
+Get a sticker pack by ID.
+
+**GET** `/sticker-packs/:pack`
+
+```typescript
+import { getStickerPack } from "@discordkit/client";
+
+const pack = await getStickerPack({ pack: "123456789" });
+```
+
+**Returns:** A sticker pack object for the given sticker pack ID.
+
+**Exports:**
+- `getStickerPack` - Handler function
+- `getStickerPackSchema` - Valibot schema for validation
+- `getStickerPackSafe` - Validated handler
+- `getStickerPackProcedure` - tRPC procedure (query)
+- `getStickerPackQuery` - Query helper
+
+---
+
+### List Guild Stickers
+
+Get all stickers for a guild.
+
+**GET** `/guilds/:guild/stickers`
+
+```typescript
+import { listGuildStickers } from "@discordkit/client";
+
+const stickers = await listGuildStickers({ guild: "123456789" });
+```
+
+**Returns:** An array of sticker objects for the given guild. Includes `user` fields if the bot has the `MANAGE_GUILD_EXPRESSIONS` permission.
+
+**Exports:**
+- `listGuildStickers` - Handler function
+- `listGuildStickersSchema` - Valibot schema for validation
+- `listGuildStickersSafe` - Validated handler
+- `listGuildStickersProcedure` - tRPC procedure (query)
+- `listGuildStickersQuery` - Query helper
+
+---
+
+### List Sticker Packs
+
+Get all available sticker packs.
+
+**GET** `/sticker-packs`
+
+```typescript
+import { listStickerPacks } from "@discordkit/client";
+
+const { stickerPacks } = await listStickerPacks();
+```
+
+**Returns:** A list of available sticker packs.
+
+**Exports:**
+- `listStickerPacks` - Handler function
+- `stickerPacksSchema` - Valibot schema for validation
+- `listStickerPacksSafe` - Validated handler
+- `listStickerPacksProcedure` - tRPC procedure (query)
+- `listStickerPacksQuery` - Query helper
+
+---
+
+### Modify Guild Sticker
+
+Modify a guild sticker.
+
+**PATCH** `/guilds/:guild/stickers/:sticker`
+
+```typescript
+import { modifyGuildSticker } from "@discordkit/client";
+
+const sticker = await modifyGuildSticker({
+  guild: "123456789",
+  sticker: "987654321",
+  body: {
+    name: "Updated Name",
+    description: "Updated description",
+    tags: "updated, tags"
+  }
+});
+```
+
+**Permissions:** Requires `MANAGE_GUILD_EXPRESSIONS` permission.
+
+**Supports Audit Log Reason:** Yes
+
+**Note:** All parameters are optional.
+
+**Returns:** The updated sticker object on success. Fires a Guild Stickers Update Gateway event.
+
+**Exports:**
+- `modifyGuildSticker` - Handler function
+- `modifyGuildStickerSchema` - Valibot schema for validation
+- `modifyGuildStickerSafe` - Validated handler
+- `modifyGuildStickerProcedure` - tRPC procedure (mutation)
+
+## Procedure Exports
+
+All sticker procedures are also exported as a namespace:
+
+```typescript
+import { stickerProcedures } from "@discordkit/client";
+
+// Access any procedure:
+stickerProcedures.createGuildStickerProcedure
+stickerProcedures.deleteGuildStickerProcedure
+// ... etc
+```

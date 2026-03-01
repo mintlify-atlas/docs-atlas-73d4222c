@@ -1,0 +1,325 @@
+---
+title: 'Interactions'
+description: 'API endpoints for managing interaction responses and followup messages'
+---
+
+## Overview
+
+The Interactions resource provides endpoints for responding to Discord interactions, including creating initial responses, editing them, and managing followup messages.
+
+## Endpoints
+
+### Create Interaction Response
+
+**POST** `/interactions/:interaction/:token/callback`
+
+Create a response to an Interaction. Returns `204` unless `withResponse` is set to `true` which returns `200` with the body as interaction callback response.
+
+```typescript
+export const createInteractionResponse: Fetcher<
+  typeof createInteractionResponseSchema,
+  InteractionCallbackResponse | undefined
+> = async ({ interaction, token, body }) =>
+  post(`/interactions/${interaction}/${token}/callback`, body);
+```
+
+#### Parameters
+
+- `interaction` - Interaction ID (snowflake)
+- `token` - Interaction token (non-empty string)
+- `body` - Interaction callback response object
+- `params.withResponse` - Whether to include an interaction callback object as the response (optional, boolean)
+
+#### Notes
+
+- This endpoint supports file attachments similar to webhook endpoints
+- Refer to Discord's Uploading Files documentation for details on `multipart/form-data` requests
+
+### Get Original Interaction Response
+
+**GET** `/webhooks/:application/:token/messages/@original`
+
+Returns the initial Interaction response. Functions the same as Get Webhook Message.
+
+```typescript
+export const getOriginalInteractionResponse: Fetcher<
+  typeof getOriginalInteractionResponseSchema,
+  InteractionCallbackResponse
+> = async ({ application, token, params }) =>
+  get(`/webhooks/${application}/${token}/messages/@original`, params);
+```
+
+#### Parameters
+
+- `application` - Application ID (snowflake)
+- `token` - Interaction token (bounded string)
+- `params.threadId` - ID of the thread the message is in (optional, snowflake)
+
+### Edit Original Interaction Response
+
+**PATCH** `/webhooks/:application/:token/messages/@original`
+
+Edits the initial Interaction response. Functions the same as Edit Webhook Message.
+
+```typescript
+export const editOriginalInteractionResponse: Fetcher<
+  typeof editOriginalInteractionResponseSchema,
+  InteractionCallbackResponse
+> = async ({ application, token, params, body }) =>
+  patch(
+    buildURL(`/webhooks/${application}/${token}/messages/@original`, params).href,
+    body
+  );
+```
+
+#### Parameters
+
+- `application` - Application ID (snowflake)
+- `token` - Interaction token (bounded string)
+- `params.threadId` - ID of the thread the message is in (optional, snowflake)
+- `body.content` - The message contents (up to 2000 characters) (optional)
+- `body.embeds` - Embedded rich content (max 10, type must be RICH) (optional)
+- `body.allowedMentions` - Allowed mentions for the message (optional)
+- `body.components` - The components to include with the message (optional)
+- `body.files` - The contents of the file being sent (optional)
+- `body.attachments` - Attachment objects with filename and description (optional)
+
+### Delete Original Interaction Response
+
+**DELETE** `/webhooks/:application/:token/messages/@original`
+
+Deletes the initial Interaction response. Returns `204 No Content` on success.
+
+```typescript
+export const deleteOriginalInteractionResponse: Fetcher<
+  typeof deleteOriginalInteractionResponseSchema
+> = async ({ application, token, params }) =>
+  remove(
+    buildURL(`/webhooks/${application}/${token}/messages/@original}`, params).href
+  );
+```
+
+#### Parameters
+
+- `application` - Application ID (snowflake)
+- `token` - Interaction token (non-empty string)
+- `params.threadId` - ID of the thread the message is in (optional, snowflake)
+
+### Create Followup Message
+
+**POST** `/webhooks/:application/:token`
+
+Create a followup message for an Interaction. Functions the same as Execute Webhook, but wait is always true.
+
+```typescript
+export const createFollowupMessage: Fetcher<
+  typeof createFollowupMessageSchema
+> = async ({ application, token, body }) =>
+  post(`/webhooks/${application}/${token}`, body);
+```
+
+#### Parameters
+
+- `application` - Application ID (snowflake)
+- `token` - Interaction token (bounded string)
+- `body.content` - The message contents (up to 2000 characters) (optional)
+- `body.tts` - True if this is a TTS message (optional)
+- `body.embeds` - Embedded rich content (max 10, type must be RICH) (optional)
+- `body.allowedMentions` - Allowed mentions for the message (optional)
+- `body.components` - The components to include with the message (optional)
+- `body.files` - The contents of the file being sent (optional)
+- `body.attachments` - Attachment objects with filename and description (optional)
+- `body.flags` - Message flags combined as a bitfield (optional)
+- `body.threadName` - Name of thread to create (requires the webhook channel to be a forum channel) (optional)
+
+#### Notes
+
+- Apps are limited to 5 followup messages per interaction if initiated from a user-installed app not installed in the server
+- The `threadId`, `avatarUrl`, and `username` parameters are not supported for interaction followups
+- You can use the `EPHEMERAL` message flag (64) to send a message only the user can see
+- You can use the `IS_COMPONENTS_V2` message flag (32768) to send a component-based message
+- When used directly after responding with `DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE`, this endpoint will function as Edit Original Interaction Response (deprecated behavior)
+
+### Get Followup Message
+
+**GET** `/webhooks/:application/:token/messages/:message`
+
+Returns a followup message for an Interaction. Functions the same as Get Webhook Message.
+
+```typescript
+export const getFollowupMessage: Fetcher<
+  typeof getFollowupMessageSchema,
+  Message
+> = async ({ application, token, message, params }) =>
+  get(`/webhooks/${application}/${token}/messages/${message}`, params);
+```
+
+#### Parameters
+
+- `application` - Application ID (snowflake)
+- `token` - Interaction token (bounded string)
+- `message` - Message ID (snowflake)
+- `params.threadId` - ID of the thread the message is in (optional, snowflake)
+
+### Edit Followup Message
+
+**PATCH** `/webhooks/:application/:token/messages/:message`
+
+Edits a followup message for an Interaction. Functions the same as Edit Webhook Message.
+
+```typescript
+export const editFollowupMessage: Fetcher<
+  typeof editFollowupMessageSchema,
+  Message
+> = async ({ application, token, message, body }) =>
+  patch(`/webhooks/${application}/${token}/messages/${message}`, body);
+```
+
+#### Parameters
+
+- `application` - Application ID (snowflake)
+- `token` - Interaction token (non-empty string)
+- `message` - Message ID (snowflake)
+- `body.content` - The message contents (up to 2000 characters) (optional)
+- `body.embeds` - Embedded rich content (max 10, type must be RICH) (optional)
+- `body.allowedMentions` - Allowed mentions for the message (optional)
+- `body.components` - The components to include with the message (optional)
+- `body.files` - The contents of the file being sent (optional)
+- `body.attachments` - Attachment objects with filename and description (optional)
+
+### Delete Followup Message
+
+**DELETE** `/webhooks/:application/:token/messages/:message`
+
+Deletes a followup message for an Interaction. Returns `204 No Content` on success.
+
+```typescript
+export const deleteFollowupMessage: Fetcher<
+  typeof deleteFollowupMessageSchema
+> = async ({ application, token, message }) =>
+  remove(`/webhooks/${application}/${token}/messages/${message}`);
+```
+
+#### Parameters
+
+- `application` - Application ID (snowflake)
+- `token` - Interaction token (non-empty string)
+- `message` - Message ID (snowflake)
+
+## Exports
+
+### Schema Exports
+
+- `createInteractionResponseSchema`
+- `getOriginalInteractionResponseSchema`
+- `editOriginalInteractionResponseSchema`
+- `deleteOriginalInteractionResponseSchema`
+- `createFollowupMessageSchema`
+- `getFollowupMessageSchema`
+- `editFollowupMessageSchema`
+- `deleteFollowupMessageSchema`
+
+### Handler Exports
+
+- `createInteractionResponse`
+- `createInteractionResponseSafe`
+- `getOriginalInteractionResponse`
+- `getOriginalInteractionResponseSafe`
+- `editOriginalInteractionResponse`
+- `editOriginalInteractionResponseSafe`
+- `deleteOriginalInteractionResponse`
+- `deleteOriginalInteractionResponseSafe`
+- `createFollowupMessage`
+- `createFollowupMessageSafe`
+- `getFollowupMessage`
+- `getFollowupMessageSafe`
+- `editFollowupMessage`
+- `editFollowupMessageSafe`
+- `deleteFollowupMessage`
+- `deleteFollowupMessageSafe`
+
+### Query Exports
+
+- `getOriginalInteractionResponseQuery`
+- `getFollowupMessageQuery`
+
+### Procedure Exports
+
+All procedures are exported via `interactionProcedures`:
+
+- `createInteractionResponseProcedure`
+- `getOriginalInteractionResponseProcedure`
+- `editOriginalInteractionResponseProcedure`
+- `deleteOriginalInteractionResponseProcedure`
+- `createFollowupMessageProcedure`
+- `getFollowupMessageProcedure`
+- `editFollowupMessageProcedure`
+- `deleteFollowupMessageProcedure`
+
+## Usage Example
+
+```typescript
+import {
+  createInteractionResponse,
+  getOriginalInteractionResponse,
+  editOriginalInteractionResponse,
+  createFollowupMessage,
+  editFollowupMessage,
+  deleteFollowupMessage,
+  InteractionCallbackType
+} from '@discordkit/client';
+
+// Respond to an interaction
+await createInteractionResponse({
+  interaction: '123456789',
+  token: 'interaction_token_here',
+  body: {
+    type: InteractionCallbackType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+      content: 'Hello! This is my response.'
+    }
+  }
+});
+
+// Get the original response
+const originalResponse = await getOriginalInteractionResponse({
+  application: '987654321',
+  token: 'interaction_token_here'
+});
+
+// Edit the original response
+const editedResponse = await editOriginalInteractionResponse({
+  application: '987654321',
+  token: 'interaction_token_here',
+  body: {
+    content: 'Updated response content!'
+  }
+});
+
+// Create a followup message
+await createFollowupMessage({
+  application: '987654321',
+  token: 'interaction_token_here',
+  body: {
+    content: 'This is a followup message',
+    flags: 64 // EPHEMERAL flag
+  }
+});
+
+// Edit a followup message
+await editFollowupMessage({
+  application: '987654321',
+  token: 'interaction_token_here',
+  message: 'followup_message_id',
+  body: {
+    content: 'Updated followup message'
+  }
+});
+
+// Delete a followup message
+await deleteFollowupMessage({
+  application: '987654321',
+  token: 'interaction_token_here',
+  message: 'followup_message_id'
+});
+```

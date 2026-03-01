@@ -1,0 +1,247 @@
+---
+title: Authentication
+description: Configure and manage Discord API authentication tokens in DiscordKit
+---
+
+## Overview
+
+DiscordKit uses the `DiscordSession` class to manage authentication and API communication with Discord. The session handles token management, rate limiting, and request queueing automatically.
+
+## Token Types
+
+Discord supports two types of authentication tokens:
+
+<Tabs>
+  <Tab title="Bot Token">
+    Bot tokens are used for bot applications and are the most common authentication method.
+
+    ```typescript
+    import { discord } from '@discordkit/client';
+
+    // Set a bot token
+    discord.setToken(`Bot ${process.env.BOT_TOKEN}`);
+    ```
+
+    <Note>
+      Bot tokens must be prefixed with `Bot ` (note the space after "Bot").
+    </Note>
+  </Tab>
+
+  <Tab title="Bearer Token">
+    Bearer tokens are used for OAuth2 user authentication flows.
+
+    ```typescript
+    import { discord } from '@discordkit/client';
+
+    // Set a bearer token
+    discord.setToken(`Bearer ${userAccessToken}`);
+    ```
+
+    <Note>
+      Bearer tokens must be prefixed with `Bearer ` (note the space after "Bearer").
+    </Note>
+  </Tab>
+</Tabs>
+
+## Setting Up Authentication
+
+### Basic Setup
+
+The simplest way to authenticate is to set your token when your application starts:
+
+```typescript
+import { discord } from '@discordkit/client';
+
+// Option 1: Set token during initialization
+const session = new DiscordSession(`Bot ${process.env.BOT_TOKEN}`);
+
+// Option 2: Set token on the default instance
+discord.setToken(`Bot ${process.env.BOT_TOKEN}`);
+```
+
+### Token Validation
+
+The `setToken` method validates your token format and throws an error if invalid:
+
+```typescript
+import { discord } from '@discordkit/client';
+
+try {
+  discord.setToken(`Bot ${process.env.BOT_TOKEN}`);
+  console.log('Token set successfully');
+} catch (error) {
+  // Error: Token must begin with either "Bot " or "Bearer "
+  console.error('Invalid token format:', error);
+}
+```
+
+<Warning>
+  Never hardcode tokens in your source code. Always use environment variables or secure secret management.
+</Warning>
+
+## Session Management
+
+### Checking Session Status
+
+You can check if a session is ready (has a valid token set):
+
+```typescript
+import { discord } from '@discordkit/client';
+
+if (discord.ready) {
+  console.log('Session is authenticated');
+} else {
+  console.log('No token set');
+}
+```
+
+Source: `/home/daytona/workspace/source/packages/core/src/requests/DiscordSession.ts:52`
+
+### Retrieving the Current Token
+
+Get the currently set authentication token:
+
+```typescript
+import { discord } from '@discordkit/client';
+
+try {
+  const token = discord.getSession();
+  // Use token...
+} catch (error) {
+  // Error: Auth Token must be set before requests can be made.
+  console.error('No token set:', error);
+}
+```
+
+Source: `/home/daytona/workspace/source/packages/core/src/requests/DiscordSession.ts:93`
+
+### Clearing Sessions
+
+Clear all session data including tokens, rate limit buckets, and queued requests:
+
+```typescript
+import { discord } from '@discordkit/client';
+
+// Clear everything
+discord.clearSession();
+
+// Set a new token
+discord.setToken(`Bot ${newToken}`);
+```
+
+Source: `/home/daytona/workspace/source/packages/core/src/requests/DiscordSession.ts:80`
+
+## Custom Session Instances
+
+You can create multiple session instances for different bots or use cases:
+
+```typescript
+import { DiscordSession } from '@discordkit/core';
+
+// Create separate sessions
+const botSession = new DiscordSession(`Bot ${process.env.BOT_TOKEN}`);
+const userSession = new DiscordSession(`Bearer ${userAccessToken}`);
+
+// Configure custom settings
+botSession.maxRetries = 3;
+botSession.endpoint = 'https://discord.com/api/v10/';
+```
+
+## Environment Configuration
+
+### Next.js Example
+
+```typescript
+// app/api/trpc/[trpc]/trpc.ts
+import { discord } from '@discordkit/client';
+
+const token = process.env.BOT_TOKEN;
+
+if (!token) {
+  throw new Error('BOT_TOKEN environment variable is required');
+}
+
+discord.setToken(`Bot ${token}`);
+```
+
+Source: `/home/daytona/workspace/source/examples/with-nextjs/src/app/api/trpc/[trpc]/trpc.ts:5`
+
+### .env File
+
+```bash
+BOT_TOKEN=your_bot_token_here
+```
+
+<Warning>
+  Add `.env` to your `.gitignore` to prevent accidentally committing secrets.
+</Warning>
+
+## Rate Limiting
+
+The `DiscordSession` automatically handles Discord's rate limits:
+
+- **Global Rate Limit**: 50 requests per second
+- **Per-Route Rate Limits**: Managed via bucket headers
+- **Invalid Request Tracking**: 10,000 per 10 minutes
+
+All requests are automatically queued and throttled to stay within these limits.
+
+Source: `/home/daytona/workspace/source/packages/core/src/requests/DiscordSession.ts:38`
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Environment Variables" icon="key">
+    Store tokens in environment variables, never in source code.
+  </Card>
+  
+  <Card title="Validate Before Use" icon="shield-check">
+    Always check `discord.ready` before making API calls.
+  </Card>
+  
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Wrap token operations in try-catch blocks to handle validation errors.
+  </Card>
+  
+  <Card title="Rotate Tokens" icon="rotate">
+    Use `clearSession()` when switching between different bot contexts.
+  </Card>
+</CardGroup>
+
+## Common Errors
+
+### Invalid Token Format
+
+```typescript
+// ❌ Wrong - missing prefix
+discord.setToken(process.env.BOT_TOKEN);
+
+// ✅ Correct
+discord.setToken(`Bot ${process.env.BOT_TOKEN}`);
+```
+
+### Making Requests Without Token
+
+```typescript
+import { discord, getCurrentApplication } from '@discordkit/client';
+
+// ❌ Wrong - token not set
+const app = await getCurrentApplication();
+// Error: Auth Token must be set before requests can be made.
+
+// ✅ Correct
+discord.setToken(`Bot ${process.env.BOT_TOKEN}`);
+const app = await getCurrentApplication();
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Request Handlers" icon="network-wired" href="/concepts/request-handlers">
+    Learn about the request handler pattern
+  </Card>
+  
+  <Card title="Validation" icon="check-circle" href="/concepts/validation">
+    Understand Valibot schema validation
+  </Card>
+</CardGroup>

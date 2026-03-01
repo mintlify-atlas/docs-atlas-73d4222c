@@ -1,0 +1,138 @@
+---
+title: Installation
+description: Install DiscordKit and its dependencies
+---
+
+# Installation
+
+DiscordKit is distributed as an npm package and requires Valibot as a peer dependency for schema validation.
+
+## Package Manager
+
+Install `@discordkit/client` and `valibot` using your preferred package manager:
+
+<CodeGroup>
+
+```bash npm
+npm install @discordkit/client valibot
+```
+
+```bash yarn
+yarn add @discordkit/client valibot
+```
+
+```bash pnpm
+pnpm add @discordkit/client valibot
+```
+
+</CodeGroup>
+
+<Note>
+  DiscordKit requires `valibot >= 1.0.0` as a peer dependency. This ensures you have full control over the validation library version.
+</Note>
+
+## Optional Dependencies
+
+Depending on how you plan to use DiscordKit, you may want to install additional packages:
+
+### For React Query Integration
+
+If you're using React Query (TanStack Query) to manage your API calls:
+
+<CodeGroup>
+
+```bash npm
+npm install @tanstack/react-query
+```
+
+```bash yarn
+yarn add @tanstack/react-query
+```
+
+```bash pnpm
+pnpm add @tanstack/react-query
+```
+
+</CodeGroup>
+
+### For tRPC Integration
+
+If you're building a tRPC backend with Discord integration:
+
+<CodeGroup>
+
+```bash npm
+npm install @trpc/server
+```
+
+```bash yarn
+yarn add @trpc/server
+```
+
+```bash pnpm
+pnpm add @trpc/server
+```
+
+</CodeGroup>
+
+## Version Requirements
+
+DiscordKit has the following requirements:
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node-js">
+    Version 20.x or higher
+  </Card>
+  <Card title="TypeScript" icon="code">
+    Version 5.x recommended for best type inference
+  </Card>
+  <Card title="Valibot" icon="check">
+    Version 1.0.0 or higher (peer dependency)
+  </Card>
+  <Card title="Module System" icon="cube">
+    ESM (ECMAScript Modules)
+  </Card>
+</CardGroup>
+
+<Warning>
+  DiscordKit is published as an ESM-only package. Make sure your project supports ES modules by setting `"type": "module"` in your `package.json`.
+</Warning>
+
+## Verify Installation
+
+After installation, verify that DiscordKit is working correctly:
+
+```typescript
+import { discord } from "@discordkit/client";
+
+console.log(discord.ready); // false (no token set yet)
+```
+
+If the import succeeds without errors, you're ready to move on to the quickstart guide.
+
+## TypeScript Configuration
+
+For the best development experience, ensure your `tsconfig.json` includes:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  }
+}
+```
+
+## Next Steps
+
+<Card
+  title="Quickstart Guide"
+  icon="rocket"
+  href="/quickstart"
+>
+  Learn how to authenticate and make your first API call
+</Card>

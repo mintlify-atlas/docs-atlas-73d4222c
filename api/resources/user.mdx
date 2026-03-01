@@ -1,0 +1,423 @@
+---
+title: 'User Resource'
+description: 'API endpoints for managing Discord users, connections, and DMs'
+---
+
+The User resource provides endpoints to manage Discord users, including getting user information, managing connections, creating DMs, and managing guild memberships.
+
+## Current User
+
+### Get Current User
+
+Returns the user object of the requester's account.
+
+```typescript
+import { getCurrentUser } from '@discordkit/client';
+
+const user = await getCurrentUser();
+```
+
+**Endpoint:** `GET /users/@me`
+
+**Exports:**
+- `getCurrentUser` - Base fetcher function
+- `getCurrentUserSafe` - Validated version with schema checking
+- `getCurrentUserProcedure` - tRPC-compatible query procedure
+- `getCurrentUserQuery` - TanStack Query-compatible function
+
+**Returns:** `User` object
+
+**OAuth2 Scopes:**
+- `identify` - Returns user without email
+- `email` - Returns user with email field
+
+**Source:** [getCurrentUser.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/user/getCurrentUser.ts)
+
+### Get User
+
+Get a user by ID.
+
+```typescript
+import { getUser } from '@discordkit/client';
+
+const user = await getUser({
+  user: '123456789'
+});
+```
+
+**Endpoint:** `GET /users/:user`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `user` (snowflake) - User ID
+</Accordion>
+
+**Exports:**
+- `getUser`
+- `getUserSafe`
+- `getUserProcedure`
+- `getUserQuery`
+- `getUserSchema`
+
+**Returns:** `User` object
+
+### Modify Current User
+
+Modify the requester's user account settings.
+
+```typescript
+import { modifyCurrentUser } from '@discordkit/client';
+
+const updated = await modifyCurrentUser({
+  body: {
+    username: 'newusername',
+    avatar: 'data:image/png;base64,...'
+  }
+});
+```
+
+**Endpoint:** `PATCH /users/@me`
+
+<Accordion title="Parameters">
+  **Body Parameters (all optional):**
+  - `username` (string, 2-32 chars) - New username
+  - `avatar` (data URI) - User avatar image
+</Accordion>
+
+**Exports:**
+- `modifyCurrentUser`
+- `modifyCurrentUserSafe`
+- `modifyCurrentUserProcedure`
+- `modifyCurrentUserSchema`
+
+**Returns:** `User` object
+
+---
+
+## Guilds
+
+### Get Current User Guilds
+
+Get a list of partial guild objects the current user is a member of.
+
+```typescript
+import { getCurrentUserGuilds } from '@discordkit/client';
+
+const guilds = await getCurrentUserGuilds({
+  params: {
+    limit: 200,
+    after: '0',
+    withCounts: true
+  }
+});
+```
+
+**Endpoint:** `GET /users/@me/guilds`
+
+<Accordion title="Parameters">
+  **Query Parameters (all optional):**
+  - `before` (snowflake) - Get guilds before this guild ID
+  - `after` (snowflake) - Get guilds after this guild ID
+  - `limit` (integer, 1-200) - Max guilds to return (default: 200)
+  - `withCounts` (boolean) - Include approximate member and presence counts
+</Accordion>
+
+**Exports:**
+- `getCurrentUserGuilds`
+- `getCurrentUserGuildsSafe`
+- `getCurrentUserGuildsProcedure`
+- `getCurrentUserGuildsQuery`
+- `getCurrentUserGuildsSchema`
+
+**Returns:** Array of partial `Guild` objects
+
+**OAuth2 Scope:** Requires `guilds` scope
+
+<Note>
+  This endpoint returns 200 guilds by default, which is the maximum number of guilds a non-bot user can join. Therefore, pagination is not needed for integrations that need to get a list of users' guilds.
+</Note>
+
+**Example Partial Guild:**
+```json
+{
+  "id": "80351110224678912",
+  "name": "1337 Krew",
+  "icon": "8342729096ea3675442027381ff50dfe",
+  "owner": true,
+  "permissions": "36953089",
+  "features": ["COMMUNITY", "NEWS"],
+  "approximate_member_count": 3268,
+  "approximate_presence_count": 784
+}
+```
+
+### Get Current User Guild Member
+
+Get the guild member object for the current user in a specific guild.
+
+```typescript
+import { getCurrentUserGuildMember } from '@discordkit/client';
+
+const member = await getCurrentUserGuildMember({
+  guild: '123456789'
+});
+```
+
+**Endpoint:** `GET /users/@me/guilds/:guild/member`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+</Accordion>
+
+**Exports:**
+- `getCurrentUserGuildMember`
+- `getCurrentUserGuildMemberSafe`
+- `getCurrentUserGuildMemberProcedure`
+- `getCurrentUserGuildMemberQuery`
+- `getCurrentUserGuildMemberSchema`
+
+**Returns:** `Member` object
+
+**OAuth2 Scope:** Requires `guilds.members.read` scope
+
+### Leave Guild
+
+Leave a guild.
+
+```typescript
+import { leaveGuild } from '@discordkit/client';
+
+await leaveGuild({
+  guild: '123456789'
+});
+```
+
+**Endpoint:** `DELETE /users/@me/guilds/:guild`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+</Accordion>
+
+**Exports:**
+- `leaveGuild`
+- `leaveGuildProcedure`
+- `leaveGuildSchema`
+
+**Returns:** `204 No Content`
+
+---
+
+## Direct Messages
+
+### Create DM
+
+Create a new DM channel with a user.
+
+```typescript
+import { createDM } from '@discordkit/client';
+
+const dmChannel = await createDM({
+  body: {
+    recipientId: '987654321'
+  }
+});
+```
+
+**Endpoint:** `POST /users/@me/channels`
+
+<Accordion title="Parameters">
+  **Body Parameters:**
+  - `recipientId` (snowflake) - User ID to open a DM with
+</Accordion>
+
+**Exports:**
+- `createDM`
+- `createDMSafe`
+- `createDMProcedure`
+- `createDMSchema`
+
+**Returns:** `Channel` object (DM channel)
+
+<Note>
+  You should not use this endpoint to DM everyone in a server. This is only for creating a DM with a user who has interacted with your app. DMs should generally be created when the user initiates contact.
+</Note>
+
+### Create Group DM
+
+Create a new group DM channel with multiple users.
+
+```typescript
+import { createGroupDM } from '@discordkit/client';
+
+const groupDM = await createGroupDM({
+  body: {
+    accessTokens: ['token1', 'token2'],
+    nicks: {
+      'user-id-1': 'Nickname 1',
+      'user-id-2': 'Nickname 2'
+    }
+  }
+});
+```
+
+**Endpoint:** `POST /users/@me/channels`
+
+<Accordion title="Parameters">
+  **Body Parameters:**
+  - `accessTokens` (array) - OAuth2 access tokens of users (max 10)
+  - `nicks` (object) - Dictionary of user IDs to nicknames
+</Accordion>
+
+**Exports:**
+- `createGroupDM`
+- `createGroupDMSafe`
+- `createGroupDMProcedure`
+- `createGroupDMSchema`
+
+**Returns:** `Channel` object (group DM channel)
+
+<Warning>
+  This endpoint is limited to 10 active group DMs.
+</Warning>
+
+---
+
+## Connections
+
+### Get User Connections
+
+Get a list of connection objects for the current user.
+
+```typescript
+import { getUserConnections } from '@discordkit/client';
+
+const connections = await getUserConnections();
+```
+
+**Endpoint:** `GET /users/@me/connections`
+
+**Exports:**
+- `getUserConnections`
+- `getUserConnectionsSafe`
+- `getUserConnectionsProcedure`
+- `getUserConnectionsQuery`
+
+**Returns:** Array of `Connection` objects
+
+**OAuth2 Scope:** Requires `connections` scope
+
+---
+
+## Application Role Connections
+
+### Get Current User Application Role Connection
+
+Get the application role connection for the current user.
+
+```typescript
+import { getCurrentUserApplicationRoleConnection } from '@discordkit/client';
+
+const roleConnection = await getCurrentUserApplicationRoleConnection({
+  application: '123456789'
+});
+```
+
+**Endpoint:** `GET /users/@me/applications/:application/role-connection`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+</Accordion>
+
+**Exports:**
+- `getCurrentUserApplicationRoleConnection`
+- `getCurrentUserApplicationRoleConnectionSafe`
+- `getCurrentUserApplicationRoleConnectionProcedure`
+- `getCurrentUserApplicationRoleConnectionQuery`
+- `getCurrentUserApplicationRoleConnectionSchema`
+
+**Returns:** `ApplicationRoleConnection` object
+
+**OAuth2 Scope:** Requires `role_connections.write` scope
+
+### Update Current User Application Role Connection
+
+Update the application role connection for the current user.
+
+```typescript
+import { updateCurrentUserApplicationRoleConnection } from '@discordkit/client';
+
+const updated = await updateCurrentUserApplicationRoleConnection({
+  application: '123456789',
+  body: {
+    platformName: 'Example Platform',
+    platformUsername: 'username123',
+    metadata: {
+      level: 50,
+      achievements: 120
+    }
+  }
+});
+```
+
+**Endpoint:** `PUT /users/@me/applications/:application/role-connection`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+
+  **Body Parameters:**
+  - `platformName` (string, optional) - Vanity name of platform
+  - `platformUsername` (string, optional) - Username on the platform
+  - `metadata` (object, optional) - Metadata values for the connection
+</Accordion>
+
+**Exports:**
+- `updateCurrentUserApplicationRoleConnection`
+- `updateCurrentUserApplicationRoleConnectionSafe`
+- `updateCurrentUserApplicationRoleConnectionProcedure`
+- `updateCurrentUserApplicationRoleConnectionSchema`
+
+**Returns:** `ApplicationRoleConnection` object
+
+**OAuth2 Scope:** Requires `role_connections.write` scope
+
+---
+
+## Procedures Export
+
+All user procedures are available as a grouped export:
+
+```typescript
+import { userProcedures } from '@discordkit/client';
+
+// Access any procedure
+const procedure = userProcedures.getCurrentUserProcedure;
+```
+
+---
+
+## User Object
+
+The `User` object represents a Discord user.
+
+**Key Fields:**
+- `id` (snowflake) - User's ID
+- `username` (string) - User's username
+- `discriminator` (string) - User's discriminator (0 for new username system)
+- `globalName` (string) - User's display name
+- `avatar` (string) - User's avatar hash
+- `bot` (boolean) - Whether user is a bot
+- `system` (boolean) - Whether user is an official Discord system user
+- `mfaEnabled` (boolean) - Whether user has MFA enabled
+- `banner` (string) - User's banner hash
+- `accentColor` (integer) - User's banner color
+- `locale` (string) - User's chosen language
+- `verified` (boolean) - Whether email is verified
+- `email` (string) - User's email
+- `flags` (integer) - User flags bitfield
+- `premiumType` (integer) - Type of Nitro subscription
+- `publicFlags` (integer) - Public flags bitfield
+- `avatarDecorationData` (object) - User's avatar decoration

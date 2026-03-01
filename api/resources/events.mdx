@@ -1,0 +1,257 @@
+---
+title: 'Guild Scheduled Events'
+description: 'API endpoints for managing guild scheduled events'
+---
+
+## Overview
+
+The Guild Scheduled Event resource provides endpoints for creating and managing scheduled events in Discord guilds. Events can be scheduled for Stage channels, voice channels, or external locations.
+
+## Endpoints
+
+### Create Guild Scheduled Event
+
+**POST** `/guilds/:guild/scheduled-events`
+
+Create a guild scheduled event in the guild. Returns a guild scheduled event object on success. Fires a Guild Scheduled Event Create Gateway event.
+
+```typescript
+export const createGuildScheduledEvent: Fetcher<
+  typeof createGuildScheduledEventSchema,
+  ScheduledEvent
+> = async ({ guild, body }) => post(`/guilds/${guild}/scheduled-events`, body);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `body.channelId` - The channel ID of the scheduled event (optional)
+- `body.entityMetadata` - The entity metadata of the scheduled event (optional)
+- `body.name` - The name of the scheduled event (required, non-empty string)
+- `body.privacyLevel` - The privacy level of the scheduled event (required)
+- `body.scheduledStartTime` - The time to schedule the event (required, timestamp)
+- `body.scheduledEndTime` - The time when the event is scheduled to end (optional, timestamp)
+- `body.description` - The description of the scheduled event (optional)
+- `body.entityType` - The entity type of the scheduled event (required)
+- `body.image` - The cover image of the scheduled event (optional, data URI)
+- `body.recurrenceRule` - The definition for how often this event should recur (optional)
+
+#### Notes
+
+- A guild can have a maximum of 100 events with `SCHEDULED` or `ACTIVE` status at any time
+- This endpoint supports the `X-Audit-Log-Reason` header
+
+### List Scheduled Events for Guild
+
+**GET** `/guilds/:guild/scheduled-events`
+
+Returns a list of guild scheduled event objects for the given guild.
+
+```typescript
+export const listScheduledEventsForGuild: Fetcher<
+  typeof listScheduledEventsForGuildSchema,
+  ScheduledEvent[]
+> = async ({ guild, params }) =>
+  get(`/guilds/${guild}/scheduled-events`, params);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `params.withUserCount` - Include number of users subscribed to events (optional, boolean)
+
+### Get Guild Scheduled Event
+
+**GET** `/guilds/:guild/scheduled-events/:event`
+
+Get a guild scheduled event. Returns a guild scheduled event object on success.
+
+```typescript
+export const getGuildScheduledEvent: Fetcher<
+  typeof getGuildScheduledEventSchema,
+  ScheduledEvent
+> = async ({ guild, event, params }) =>
+  get(`/guilds/${guild}/scheduled-events/${event}`, params);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `event` - Event ID (snowflake)
+- `params.withUserCount` - Include number of users subscribed to this event (optional, boolean)
+
+### Modify Guild Scheduled Event
+
+**PATCH** `/guilds/:guild/scheduled-events/:event`
+
+Modify a guild scheduled event. Returns the modified guild scheduled event object on success. Fires a Guild Scheduled Event Update Gateway event.
+
+```typescript
+export const modifyGuildScheduledEvent: Fetcher<
+  typeof modifyGuildScheduledEventSchema,
+  ScheduledEvent
+> = async ({ guild, event, body }) =>
+  patch(`/guilds/${guild}/scheduled-events/${event}`, body);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `event` - Event ID (snowflake)
+- `body.channelId` - The channel ID of the scheduled event (optional, nullable)
+- `body.entityMetadata` - The entity metadata of the scheduled event (optional, nullable)
+- `body.name` - The name of the scheduled event (optional)
+- `body.privacyLevel` - The privacy level of the scheduled event (optional)
+- `body.scheduledStartTime` - The time to schedule the event (optional)
+- `body.scheduledEndTime` - The time when the event is scheduled to end (optional)
+- `body.description` - The description of the scheduled event (optional, nullable)
+- `body.entityType` - The entity type of the scheduled event (optional)
+- `body.status` - The status of the scheduled event (optional)
+- `body.image` - The cover image of the scheduled event (optional)
+- `body.recurrenceRule` - The definition for how often this event should recur (optional)
+
+#### Notes
+
+- To start or end an event, use this endpoint to modify the event's status field
+- This endpoint supports the `X-Audit-Log-Reason` header
+- This endpoint silently discards `entity_metadata` for non-`EXTERNAL` events
+
+### Get Guild Scheduled Event Users
+
+**GET** `/guilds/:guild/scheduled-events/:event/users`
+
+Get a list of guild scheduled event users subscribed to a guild scheduled event. Returns a list of guild scheduled event user objects on success. Guild member data, if it exists, is included if the `withMember` query parameter is set.
+
+```typescript
+export const getGuildScheduledEventUsers: Fetcher<
+  typeof getGuildScheduledEventUsersSchema,
+  ScheduledEventUser[]
+> = async ({ guild, event, params }) =>
+  get(`/guilds/${guild}/scheduled-events/${event}/users`, params);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `event` - Event ID (snowflake)
+- `params.limit` - Number of users to return (1-100, default: 100) (optional)
+- `params.withMember` - Include guild member data if it exists (default: false) (optional)
+- `params.before` - Consider only users before given user ID (optional)
+- `params.after` - Consider only users after given user ID (optional)
+
+### Delete Guild Scheduled Event
+
+**DELETE** `/guilds/:guild/scheduled-events/:event`
+
+Delete a guild scheduled event. Returns a `204` on success. Fires a Guild Scheduled Event Delete Gateway event.
+
+```typescript
+export const deleteGuildScheduledEvent: Fetcher<
+  typeof deleteGuildScheduledEventSchema
+> = async ({ guild, event }) =>
+  remove(`/guilds/${guild}/scheduled-events/${event}`);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `event` - Event ID (snowflake)
+
+## Exports
+
+### Schema Exports
+
+- `createGuildScheduledEventSchema`
+- `listScheduledEventsForGuildSchema`
+- `getGuildScheduledEventSchema`
+- `modifyGuildScheduledEventSchema`
+- `getGuildScheduledEventUsersSchema`
+- `deleteGuildScheduledEventSchema`
+
+### Handler Exports
+
+- `createGuildScheduledEvent`
+- `createGuildScheduledEventSafe`
+- `listScheduledEventsForGuild`
+- `listScheduledEventsForGuildSafe`
+- `getGuildScheduledEvent`
+- `getGuildScheduledEventSafe`
+- `modifyGuildScheduledEvent`
+- `modifyGuildScheduledEventSafe`
+- `getGuildScheduledEventUsers`
+- `getGuildScheduledEventUsersSafe`
+- `deleteGuildScheduledEvent`
+- `deleteGuildScheduledEventSafe`
+
+### Query Exports
+
+- `getGuildScheduledEventQuery`
+- `getGuildScheduledEventUsersQuery`
+- `listScheduledEventsForGuildQuery`
+
+### Procedure Exports
+
+All procedures are exported via `eventProcedures`:
+
+- `createGuildScheduledEventProcedure`
+- `deleteGuildScheduledEventProcedure`
+- `getGuildScheduledEventProcedure`
+- `getGuildScheduledEventUsersProcedure`
+- `listScheduledEventsForGuildProcedure`
+- `modifyGuildScheduledEventProcedure`
+
+## Usage Example
+
+```typescript
+import {
+  createGuildScheduledEvent,
+  listScheduledEventsForGuild,
+  getGuildScheduledEvent,
+  modifyGuildScheduledEvent,
+  deleteGuildScheduledEvent,
+  ScheduledEventEntityType,
+  ScheduledEventPrivacyLevel
+} from '@discordkit/client';
+
+// Create a new scheduled event
+const event = await createGuildScheduledEvent({
+  guild: '123456789',
+  body: {
+    name: 'Community Game Night',
+    description: 'Join us for a fun game night!',
+    scheduledStartTime: new Date('2024-12-25T20:00:00Z'),
+    scheduledEndTime: new Date('2024-12-25T23:00:00Z'),
+    privacyLevel: ScheduledEventPrivacyLevel.GUILD_ONLY,
+    entityType: ScheduledEventEntityType.VOICE,
+    channelId: '987654321'
+  }
+});
+
+// List all events for a guild
+const events = await listScheduledEventsForGuild({
+  guild: '123456789',
+  params: { withUserCount: true }
+});
+
+// Get a specific event
+const eventDetails = await getGuildScheduledEvent({
+  guild: '123456789',
+  event: event.id
+});
+
+// Modify an event
+const updatedEvent = await modifyGuildScheduledEvent({
+  guild: '123456789',
+  event: event.id,
+  body: {
+    name: 'Updated Game Night',
+    description: 'New description!'
+  }
+});
+
+// Delete an event
+await deleteGuildScheduledEvent({
+  guild: '123456789',
+  event: event.id
+});
+```

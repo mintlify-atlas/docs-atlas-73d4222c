@@ -1,0 +1,74 @@
+---
+title: Invite
+description: API reference for Discord invite resource endpoints
+---
+
+Invites are a way to grant users access to guild channels. This resource provides endpoints to retrieve and delete invites.
+
+## Available Endpoints
+
+### Delete Invite
+
+Delete an invite.
+
+**DELETE** `/invites/:code`
+
+```typescript
+import { deleteInvite } from "@discordkit/client";
+
+const deletedInvite = await deleteInvite({ code: "abc123" });
+```
+
+**Permissions:** Requires `MANAGE_CHANNELS` permission on the channel the invite belongs to, or `MANAGE_GUILD` to remove any invite across the guild.
+
+**Supports Audit Log Reason:** Yes
+
+**Returns:** An invite object on success. Fires an Invite Delete Gateway event.
+
+**Exports:**
+- `deleteInvite` - Handler function
+- `deleteInviteSchema` - Valibot schema for validation
+- `deleteInviteSafe` - Validated handler
+- `deleteInviteProcedure` - tRPC procedure (mutation)
+
+---
+
+### Get Invite
+
+Get information about an invite.
+
+**GET** `/invites/:code`
+
+```typescript
+import { getInvite } from "@discordkit/client";
+
+const invite = await getInvite({
+  code: "abc123",
+  params: {
+    withCounts: true, // Optional: include approximate member counts
+    withExpiration: true, // Optional: include expiration date
+    guildScheduledEventId: "123456789" // Optional: include scheduled event
+  }
+});
+```
+
+**Returns:** An invite object for the given code.
+
+**Exports:**
+- `getInvite` - Handler function
+- `getInviteSchema` - Valibot schema for validation
+- `getInviteSafe` - Validated handler
+- `getInviteProcedure` - tRPC procedure (query)
+- `getInviteQuery` - Query helper
+
+## Procedure Exports
+
+All invite procedures are also exported as a namespace:
+
+```typescript
+import { inviteProcedures } from "@discordkit/client";
+
+// Access any procedure:
+inviteProcedures.deleteInviteProcedure
+inviteProcedures.getInviteProcedure
+```

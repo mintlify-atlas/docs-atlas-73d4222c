@@ -1,0 +1,504 @@
+---
+title: Using DiscordKit with tRPC
+description: Build type-safe Discord API wrappers with tRPC and DiscordKit
+---
+
+DiscordKit exports pre-built tRPC procedure builders for all endpoints, making it easy to create type-safe API routes that proxy Discord's API. Each endpoint exports a procedure builder with the naming pattern `{endpoint}Procedure`.
+
+## Installation
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    npm install @discordkit/client @trpc/server @trpc/client valibot
+    ```
+  </Step>
+
+  <Step title="Initialize tRPC">
+    Create your tRPC instance and base procedure:
+
+    ```typescript
+    // server/trpc.ts
+    import { initTRPC } from '@trpc/server';
+
+    export const t = initTRPC.context<Context>().create();
+
+    export const router = t.router;
+    export const publicProcedure = t.procedure;
+    ```
+  </Step>
+
+  <Step title="Configure Discord client">
+    Set up authentication for your Discord requests:
+
+    ```typescript
+    import { discord } from '@discordkit/client';
+
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+    discord.setToken(`Bot ${botToken}`);
+    ```
+  </Step>
+</Steps>
+
+## Basic Router Setup
+
+DiscordKit procedure builders accept a tRPC procedure as input and return a fully-typed procedure:
+
+```typescript
+import { initTRPC } from '@trpc/server';
+import { 
+  discord,
+  getCurrentApplicationProcedure,
+  getGuildProcedure,
+  getUserProcedure
+} from '@discordkit/client';
+
+const botToken = process.env.DISCORD_BOT_TOKEN;
+discord.setToken(`Bot ${botToken}`);
+
+const t = initTRPC.create();
+
+const appRouter = t.router({
+  // Query procedures for GET endpoints
+  getCurrentApplication: getCurrentApplicationProcedure(t.procedure),
+  getGuild: getGuildProcedure(t.procedure),
+  getUser: getUserProcedure(t.procedure)
+});
+
+export type AppRouter = typeof appRouter;
+```
+
+## HTTP Server
+
+Create a standalone HTTP server with tRPC:
+
+<CodeGroup>
+```typescript Standalone Server
+import { createHTTPServer } from '@trpc/server/adapters/standalone';
+import { 
+  discord,
+  getCurrentApplicationProcedure,
+  getGuildProcedure
+} from '@discordkit/client';
+import { initTRPC } from '@trpc/server';
+
+const botToken = process.env.DISCORD_BOT_TOKEN;
+discord.setToken(`Bot ${botToken}`);
+
+const t = initTRPC.create();
+
+const appRouter = t.router({
+  getCurrentApplication: getCurrentApplicationProcedure(t.procedure),
+  getGuild: getGuildProcedure(t.procedure)
+});
+
+const server = createHTTPServer({
+  router: appRouter
+});
+
+server.listen(3000);
+console.log('tRPC server listening on http://localhost:3000');
+```
+
+```typescript Next.js
+// app/api/trpc/[trpc]/route.ts
+import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
+import { appRouter } from '~/server/routers/_app';
+
+const handler = (req: Request) =>
+  fetchRequestHandler({
+    endpoint: '/api/trpc',
+    req,
+    router: appRouter,
+    createContext: () => ({})
+  });
+
+export { handler as GET, handler as POST };
+```
+
+```typescript Express
+import express from 'express';
+import { createExpressMiddleware } from '@trpc/server/adapters/express';
+import { appRouter } from './router';
+
+const app = express();
+
+app.use(
+  '/trpc',
+  createExpressMiddleware({
+    router: appRouter,
+    createContext: () => ({})
+  })
+);
+
+app.listen(3000);
+```
+</CodeGroup>
+
+## Authentication & Context
+
+Use tRPC context and middleware to handle dynamic authentication:
+
+<Steps>
+  <Step title="Define context type">
+    ```typescript
+    // server/context.ts
+    export interface Context {
+      user?: {
+        token: string;
+        id: string;
+      };
+    }
+    ```
+  </Step>
+
+  <Step title="Create context from request">
+    ```typescript
+    import { CreateHTTPContextOptions } from '@trpc/server/adapters/standalone';
+    import { Context } from './context';
+
+    export async function createContext(
+      opts: CreateHTTPContextOptions
+    ): Promise<Context> {
+      const authHeader = opts.req.headers.authorization;
+      
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        // Verify and decode your JWT token here
+        const user = await verifyToken(token);
+        return { user };
+      }
+      
+      return {};
+    }
+    ```
+  </Step>
+
+  <Step title="Create authenticated procedure">
+    ```typescript
+    // server/trpc.ts
+    import { initTRPC, TRPCError } from '@trpc/server';
+    import { discord } from '@discordkit/client';
+    import { Context } from './context';
+
+    const t = initTRPC.context<Context>().create();
+
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+
+    // Public procedure uses bot token
+    export const publicProcedure = t.procedure.use(({ next }) => {
+      discord.setToken(`Bot ${botToken}`);
+      return next();
+    });
+
+    // Protected procedure uses user token
+    export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
+      if (!ctx.user) {
+        throw new TRPCError({ code: 'UNAUTHORIZED' });
+      }
+      
+      // Use the user's token for this request
+      discord.setToken(`Bearer ${ctx.user.token}`);
+      
+      return next({ ctx: { user: ctx.user } });
+    });
+    ```
+  </Step>
+
+  <Step title="Build router with different auth levels">
+    ```typescript
+    import { 
+      getCurrentApplicationProcedure,
+      getGuildProcedure,
+      getCurrentUserProcedure,
+      modifyGuildProcedure
+    } from '@discordkit/client';
+    import { publicProcedure, protectedProcedure, t } from './trpc';
+
+    export const appRouter = t.router({
+      // Public endpoint - uses bot token
+      getCurrentApplication: getCurrentApplicationProcedure(publicProcedure),
+      
+      // User endpoints - use user token from context
+      getCurrentUser: getCurrentUserProcedure(protectedProcedure),
+      getGuild: getGuildProcedure(protectedProcedure),
+      modifyGuild: modifyGuildProcedure(protectedProcedure)
+    });
+    ```
+  </Step>
+</Steps>
+
+## Query vs Mutation Procedures
+
+DiscordKit automatically creates the correct procedure type based on the HTTP method:
+
+<Tabs>
+  <Tab title="Query (GET)">
+    ```typescript
+    import { 
+      getGuildProcedure,
+      getUserProcedure,
+      getChannelProcedure
+    } from '@discordkit/client';
+
+    // All GET endpoints export query procedures
+    const router = t.router({
+      getGuild: getGuildProcedure(t.procedure),      // query
+      getUser: getUserProcedure(t.procedure),        // query
+      getChannel: getChannelProcedure(t.procedure)   // query
+    });
+    ```
+
+    Usage from client:
+    ```typescript
+    const guild = await trpc.getGuild.query({ 
+      id: '123456789',
+      params: { withCounts: true }
+    });
+    ```
+  </Tab>
+
+  <Tab title="Mutation (POST/PATCH/DELETE)">
+    ```typescript
+    import { 
+      createMessageProcedure,
+      modifyGuildProcedure,
+      deleteMessageProcedure
+    } from '@discordkit/client';
+
+    // POST, PATCH, PUT, DELETE endpoints export mutation procedures
+    const router = t.router({
+      createMessage: createMessageProcedure(t.procedure),  // mutation
+      modifyGuild: modifyGuildProcedure(t.procedure),      // mutation
+      deleteMessage: deleteMessageProcedure(t.procedure)   // mutation
+    });
+    ```
+
+    Usage from client:
+    ```typescript
+    const message = await trpc.createMessage.mutate({
+      channel: '123456789',
+      body: { content: 'Hello, world!' }
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Error Handling
+
+Add custom error handling to your procedures:
+
+```typescript
+import { getGuildProcedure } from '@discordkit/client';
+import { TRPCError } from '@trpc/server';
+
+const errorHandler = (error: unknown) => {
+  console.error('Discord API error:', error);
+  
+  if (error instanceof Error) {
+    // Transform Discord errors into tRPC errors
+    if (error.message.includes('403')) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Missing access to this guild'
+      });
+    }
+    if (error.message.includes('404')) {
+      throw new TRPCError({
+        code: 'NOT_FOUND',
+        message: 'Guild not found'
+      });
+    }
+  }
+  
+  throw new TRPCError({
+    code: 'INTERNAL_SERVER_ERROR',
+    message: 'An unexpected error occurred'
+  });
+};
+
+// Pass error handler to procedure builder
+const router = t.router({
+  getGuild: getGuildProcedure(t.procedure, errorHandler)
+});
+```
+
+## Client Usage
+
+<Tabs>
+  <Tab title="React">
+    ```typescript
+    // utils/trpc.ts
+    import { createTRPCReact } from '@trpc/react-query';
+    import type { AppRouter } from '../server/router';
+
+    export const trpc = createTRPCReact<AppRouter>();
+    ```
+
+    ```tsx
+    // app.tsx
+    import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+    import { httpBatchLink } from '@trpc/client';
+    import { trpc } from './utils/trpc';
+    import { useState } from 'react';
+
+    export function App() {
+      const [queryClient] = useState(() => new QueryClient());
+      const [trpcClient] = useState(() =>
+        trpc.createClient({
+          links: [
+            httpBatchLink({
+              url: 'http://localhost:3000/trpc',
+              headers() {
+                return {
+                  authorization: `Bearer ${localStorage.getItem('token')}`
+                };
+              }
+            })
+          ]
+        })
+      );
+
+      return (
+        <trpc.Provider client={trpcClient} queryClient={queryClient}>
+          <QueryClientProvider client={queryClient}>
+            {/* Your app */}
+          </QueryClientProvider>
+        </trpc.Provider>
+      );
+    }
+    ```
+
+    ```tsx
+    // components/GuildInfo.tsx
+    import { trpc } from '../utils/trpc';
+
+    export function GuildInfo({ guildId }: { guildId: string }) {
+      const { data, isLoading } = trpc.getGuild.useQuery({ 
+        id: guildId,
+        params: { withCounts: true }
+      });
+
+      if (isLoading) return <div>Loading...</div>;
+
+      return (
+        <div>
+          <h1>{data?.name}</h1>
+          <p>Members: {data?.approximateMemberCount}</p>
+        </div>
+      );
+    }
+    ```
+  </Tab>
+
+  <Tab title="Vanilla TypeScript">
+    ```typescript
+    import { createTRPCProxyClient, httpBatchLink } from '@trpc/client';
+    import type { AppRouter } from './server/router';
+
+    const client = createTRPCProxyClient<AppRouter>({
+      links: [
+        httpBatchLink({
+          url: 'http://localhost:3000/trpc'
+        })
+      ]
+    });
+
+    // Query
+    const guild = await client.getGuild.query({ 
+      id: '123456789',
+      params: { withCounts: true }
+    });
+    console.log(guild.name);
+
+    // Mutation
+    const message = await client.createMessage.mutate({
+      channel: '987654321',
+      body: { content: 'Hello from tRPC!' }
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Advanced Patterns
+
+### Rate Limiting
+
+DiscordKit handles rate limiting automatically, but you can monitor queue size:
+
+```typescript
+import { discord } from '@discordkit/client';
+
+const statusProcedure = t.procedure.query(() => {
+  return {
+    queueSize: discord.getQueueSize(),
+    isReady: discord.ready
+  };
+});
+```
+
+### Batch Requests
+
+Use tRPC's batch linking to combine multiple requests:
+
+```typescript
+import { httpBatchLink } from '@trpc/client';
+
+const client = createTRPCProxyClient<AppRouter>({
+  links: [
+    httpBatchLink({
+      url: 'http://localhost:3000/trpc',
+      maxURLLength: 2083 // Customize batch size
+    })
+  ]
+});
+
+// These will be batched into a single HTTP request
+const [user, guild, application] = await Promise.all([
+  client.getUser.query({ user: '123' }),
+  client.getGuild.query({ id: '456' }),
+  client.getCurrentApplication.query()
+]);
+```
+
+### Middleware Chaining
+
+Chain multiple middleware for complex authorization:
+
+```typescript
+const rateLimitMiddleware = t.middleware(async ({ next, path }) => {
+  // Custom rate limiting logic
+  await checkRateLimit(path);
+  return next();
+});
+
+const loggingMiddleware = t.middleware(async ({ next, path }) => {
+  const start = Date.now();
+  const result = await next();
+  console.log(`${path} took ${Date.now() - start}ms`);
+  return result;
+});
+
+const customProcedure = t.procedure
+  .use(rateLimitMiddleware)
+  .use(loggingMiddleware)
+  .use(({ ctx, next }) => {
+    discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+    return next();
+  });
+
+export const appRouter = t.router({
+  getGuild: getGuildProcedure(customProcedure)
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Learn how to handle Discord API errors
+  </Card>
+  <Card title="Raw Handlers" icon="code" href="/guides/vanilla-typescript">
+    Use raw request handlers without tRPC
+  </Card>
+</CardGroup>

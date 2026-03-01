@@ -1,0 +1,175 @@
+---
+title: API Reference Overview
+description: Understanding DiscordKit's export patterns and API design
+---
+
+DiscordKit provides a type-safe, modular API for interacting with Discord's REST API. The library is split into two main packages:
+
+- **@discordkit/client** - Complete Discord REST API client with all endpoints
+- **@discordkit/core** - Core utilities, validation schemas, and request handlers
+
+## Export Patterns
+
+For each Discord API endpoint, DiscordKit exports multiple variants to support different use cases:
+
+### Base Fetcher Function
+
+The primary function that makes the HTTP request:
+
+```typescript
+import { getGuild } from '@discordkit/client';
+
+const guild = await getGuild({
+  id: '123456789',
+  params: { withCounts: true }
+});
+```
+
+### Schema Export
+
+Valibot schema for validating input parameters:
+
+```typescript
+import { getGuildSchema } from '@discordkit/client';
+import * as v from 'valibot';
+
+// Schema structure:
+// v.object({
+//   id: snowflake,
+//   params: v.exactOptional(v.partial(v.object({
+//     withCounts: v.boolean()
+//   })))
+// })
+
+const result = v.parse(getGuildSchema, {
+  id: '123456789',
+  params: { withCounts: true }
+});
+```
+
+### Safe (Validated) Fetcher
+
+Wraps the base fetcher with runtime input and output validation:
+
+```typescript
+import { getGuildSafe } from '@discordkit/client';
+
+// Validates input parameters and output response at runtime
+const guild = await getGuildSafe({
+  id: '123456789',
+  params: { withCounts: true }
+});
+```
+
+### Procedure Export (tRPC)
+
+Factory function for creating tRPC procedures:
+
+```typescript
+import { getGuildProcedure } from '@discordkit/client';
+import { initTRPC } from '@trpc/server';
+
+const t = initTRPC.create();
+
+const appRouter = t.router({
+  getGuild: getGuildProcedure(t.procedure)
+});
+```
+
+### Query Export (React Query / TanStack Query)
+
+Factory function for creating React Query query functions:
+
+```typescript
+import { getGuildQuery } from '@discordkit/client';
+import { useQuery } from '@tanstack/react-query';
+
+function MyComponent({ guildId }: { guildId: string }) {
+  const { data: guild } = useQuery({
+    queryKey: ['guild', guildId],
+    queryFn: getGuildQuery({ id: guildId })
+  });
+
+  return <div>{guild?.name}</div>;
+}
+```
+
+## Naming Convention
+
+All endpoint exports follow a consistent naming pattern:
+
+| Export Type | Pattern | Example |
+|------------|---------|----------|
+| Base Function | `{action}{Resource}` | `getGuild`, `createMessage`, `modifyChannel` |
+| Schema | `{action}{Resource}Schema` | `getGuildSchema`, `createMessageSchema` |
+| Safe Function | `{action}{Resource}Safe` | `getGuildSafe`, `createMessageSafe` |
+| Procedure | `{action}{Resource}Procedure` | `getGuildProcedure`, `createMessageProcedure` |
+| Query | `{action}{Resource}Query` | `getGuildQuery` (queries only) |
+
+## Query vs Mutation Procedures
+
+Procedures are typed as either `query` or `mutation` based on the HTTP method:
+
+- **Queries** (GET requests) - Read operations like `getGuild`, `getUser`, `listGuildMembers`
+- **Mutations** (POST, PATCH, PUT, DELETE) - Write operations like `createGuild`, `modifyChannel`, `deleteMessage`
+
+```typescript
+// Query procedure (GET)
+export const getGuildProcedure = toProcedure(
+  'query',
+  getGuild,
+  getGuildSchema,
+  guildSchema
+);
+
+// Mutation procedure (POST)
+export const createGuildProcedure = toProcedure(
+  'mutation',
+  createGuild,
+  createGuildSchema,
+  guildSchema
+);
+```
+
+Note that only read operations (queries) export a `Query` variant for React Query.
+
+## Type Safety
+
+All functions are fully typed using Valibot schemas:
+
+```typescript
+import type { Fetcher } from '@discordkit/core';
+
+export const getGuild: Fetcher<typeof getGuildSchema, Guild> = async ({
+  id,
+  params
+}) => get(`/guilds/${id}`, params);
+```
+
+The `Fetcher` type ensures:
+- Input parameters match the schema definition
+- Return type matches the expected Discord API response
+- Full TypeScript autocomplete and type checking
+
+## Grouped Exports
+
+Procedures can also be imported as grouped namespaces:
+
+```typescript
+import { guildProcedures, userProcedures, channelProcedures } from '@discordkit/client';
+import { allProcedures } from '@discordkit/client';
+
+// Use grouped procedures in your router
+const router = t.router({
+  guild: t.router({
+    get: guildProcedures.getGuildProcedure(t.procedure),
+    create: guildProcedures.createGuildProcedure(t.procedure)
+  })
+});
+```
+
+## Next Steps
+
+- [Client Package Reference](/api/client) - Full list of Discord API endpoints
+- [Core Package Reference](/api/core) - Utilities, validators, and request handlers
+- [Quick Start Guide](/quickstart) - Get started with DiscordKit

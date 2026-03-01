@@ -1,0 +1,148 @@
+---
+title: Introduction
+description: TypeScript SDK for Discord's API with built-in support for React Query and tRPC
+---
+
+<img
+  className="block dark:hidden"
+  src="https://raw.githubusercontent.com/discordkit/discordkit/master/static/logo-light.svg"
+  alt="DiscordKit Logo"
+/>
+<img
+  className="hidden dark:block"
+  src="https://raw.githubusercontent.com/discordkit/discordkit/master/static/logo-dark.svg"
+  alt="DiscordKit Logo"
+/>
+
+# Welcome to DiscordKit
+
+DiscordKit is a powerful TypeScript SDK for Discord's API that provides type-safe request handlers, built-in input validation with Valibot, and first-class support for React Query and tRPC.
+
+## Why DiscordKit?
+
+DiscordKit stands out by offering multiple integration patterns for the same Discord API endpoints, allowing you to choose the approach that best fits your application architecture.
+
+<CardGroup cols={2}>
+  <Card
+    title="Type-Safe by Default"
+    icon="shield-check"
+  >
+    Built with TypeScript and Valibot schemas for compile-time and runtime type safety across all Discord API endpoints.
+  </Card>
+  <Card
+    title="Multiple Integration Patterns"
+    icon="puzzle-piece"
+  >
+    Use vanilla request handlers, React Query hooks, or tRPC procedures - all generated from the same source.
+  </Card>
+  <Card
+    title="Automatic Rate Limiting"
+    icon="gauge-high"
+  >
+    Built-in rate limit handling with automatic request queuing, retry logic, and global/per-route limit tracking.
+  </Card>
+  <Card
+    title="Input Validation"
+    icon="check-double"
+  >
+    Every endpoint includes Valibot schemas to validate inputs before making requests, preventing common API errors.
+  </Card>
+</CardGroup>
+
+## Available Exports per Endpoint
+
+For each Discord API endpoint, DiscordKit exports four complementary functions. Here's an example using the Get Guild endpoint:
+
+```typescript
+import {
+  // Input validation schema
+  getGuildSchema,
+  // Request handler
+  getGuild,
+  // tRPC procedure builder
+  getGuildProcedure,
+  // React Query query function
+  getGuildQuery
+} from "@discordkit/client";
+```
+
+<Note>
+  All `GET` endpoints export query functions for React Query, while mutation endpoints (POST, PATCH, DELETE) export appropriate mutation handlers.
+</Note>
+
+## Feature Highlights
+
+### Comprehensive API Coverage
+
+DiscordKit covers all major Discord API resources:
+
+- **Guilds** - Server management, roles, channels, members
+- **Users** - User profiles, relationships, connections
+- **Channels** - Messages, threads, permissions
+- **Applications** - Commands, interactions, webhooks
+- **Voice** - Voice regions, channels
+- **And more** - Auto-moderation, events, stickers, polls, entitlements
+
+### Built-in Rate Limiting
+
+The DiscordSession class automatically handles:
+
+- Global rate limits (50 requests/second)
+- Per-route rate limit buckets
+- Automatic retry with exponential backoff
+- Invalid request tracking to prevent temporary bans
+
+### Validation Schemas
+
+Every endpoint includes Valibot schemas for:
+
+- Request input validation
+- Response validation
+- Type inference
+- Runtime safety
+
+## Quick Example
+
+Here's how simple it is to fetch a Discord guild:
+
+```typescript
+import { discord, getGuild } from "@discordkit/client";
+
+// Set your bot token
+discord.setToken("Bot YOUR_BOT_TOKEN");
+
+// Fetch a guild
+const guild = await getGuild({ 
+  id: "1234567890",
+  params: { withCounts: true }
+});
+
+console.log(guild.name);
+```
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Install DiscordKit and its peer dependencies
+  </Card>
+  <Card
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Make your first API call in minutes
+  </Card>
+</CardGroup>
+
+## Open Source
+
+DiscordKit is open source and released under the MIT license. Contributions, issues, and feedback are welcome on [GitHub](https://github.com/discordkit/discordkit).
+
+<Note>
+  Endpoint documentation is sourced from Discord's [Official API Documentation](https://discord.com/developers/docs/).
+</Note>

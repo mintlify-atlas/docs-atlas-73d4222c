@@ -1,0 +1,431 @@
+---
+title: 'Application Resource'
+description: 'API endpoints for managing Discord application and application commands'
+---
+
+The Application resource provides endpoints to manage your Discord application and its associated commands. This includes creating, editing, and deleting global and guild-specific application commands, as well as managing command permissions.
+
+## Get Current Application
+
+Returns the application object associated with the requesting bot user.
+
+```typescript
+import { getCurrentApplication } from '@discordkit/client';
+
+const app = await getCurrentApplication();
+```
+
+**Endpoint:** `GET /applications/@me`
+
+**Exports:**
+- `getCurrentApplication` - Base fetcher function
+- `getCurrentApplicationSafe` - Validated version with schema checking
+- `getCurrentApplicationProcedure` - tRPC-compatible query procedure
+- `getCurrentApplicationQuery` - TanStack Query-compatible function
+
+**Returns:** `Application` object
+
+**Source:** [getCurrentApplication.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/application/getCurrentApplication.ts)
+
+---
+
+## Global Application Commands
+
+### Get Global Application Commands
+
+Fetch all global commands for your application.
+
+```typescript
+import { getGlobalApplicationCommands } from '@discordkit/client';
+
+const commands = await getGlobalApplicationCommands({
+  application: '123456789',
+  params: { withLocalizations: true }
+});
+```
+
+**Endpoint:** `GET /applications/:application/commands`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+
+  **Query Parameters:**
+  - `withLocalizations` (boolean, optional) - Whether to include full localization dictionaries in returned objects. Default: `false`
+</Accordion>
+
+**Exports:**
+- `getGlobalApplicationCommands` - Base fetcher
+- `getGlobalApplicationCommandsSafe` - Validated version
+- `getGlobalApplicationCommandsProcedure` - Query procedure
+- `getGlobalApplicationCommandsQuery` - TanStack Query function
+- `getGlobalApplicationCommandsSchema` - Valibot schema
+
+**Returns:** Array of `ApplicationCommand` objects
+
+### Get Global Application Command
+
+Fetch a specific global command by ID.
+
+```typescript
+import { getGlobalApplicationCommand } from '@discordkit/client';
+
+const command = await getGlobalApplicationCommand({
+  application: '123456789',
+  command: '987654321'
+});
+```
+
+**Endpoint:** `GET /applications/:application/commands/:command`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+  - `command` (snowflake) - Command ID
+</Accordion>
+
+**Exports:**
+- `getGlobalApplicationCommand`
+- `getGlobalApplicationCommandSafe`
+- `getGlobalApplicationCommandProcedure`
+- `getGlobalApplicationCommandQuery`
+- `getGlobalApplicationCommandSchema`
+
+**Returns:** `ApplicationCommand` object
+
+### Create Global Application Command
+
+Create a new global command. Returns `201` if a command with the same name does not exist, or `200` if it does (overwriting the previous command).
+
+```typescript
+import { createGlobalApplicationCommand } from '@discordkit/client';
+
+const command = await createGlobalApplicationCommand({
+  application: '123456789',
+  body: {
+    name: 'hello',
+    description: 'Say hello',
+    options: []
+  }
+});
+```
+
+**Endpoint:** `POST /applications/:application/commands`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+
+  **Body Parameters:**
+  - `name` (string, 1-32 chars) - Name of command
+  - `nameLocalizations` (object, optional) - Localization dictionary for name
+  - `description` (string, 1-100 chars, optional) - Description for CHAT_INPUT commands
+  - `descriptionLocalizations` (object, optional) - Localization dictionary for description
+  - `options` (array, optional) - Command parameters
+  - `defaultMemberPermissions` (string, optional) - Default permissions as bit set
+  - `dmPermission` (boolean, optional) - Whether command is available in DMs
+  - `defaultPermission` (boolean, optional, deprecated) - Whether enabled by default
+  - `type` (integer, optional) - Command type (default: 1 for CHAT_INPUT)
+  - `nsfw` (boolean, optional) - Whether command is age-restricted
+</Accordion>
+
+<Warning>
+  Creating a command with the same name as an existing command will overwrite the old command.
+</Warning>
+
+**Exports:**
+- `createGlobalApplicationCommand`
+- `createGlobalApplicationCommandSafe`
+- `createGlobalApplicationCommandProcedure`
+- `createGlobalApplicationCommandSchema`
+
+**Returns:** `ApplicationCommand` object
+
+### Edit Global Application Command
+
+Edit a global command. All parameters are optional.
+
+```typescript
+import { editGlobalApplicationCommand } from '@discordkit/client';
+
+const updated = await editGlobalApplicationCommand({
+  application: '123456789',
+  command: '987654321',
+  body: {
+    description: 'Updated description'
+  }
+});
+```
+
+**Endpoint:** `PATCH /applications/:application/commands/:command`
+
+**Exports:**
+- `editGlobalApplicationCommand`
+- `editGlobalApplicationCommandSafe`
+- `editGlobalApplicationCommandProcedure`
+- `editGlobalApplicationCommandSchema`
+
+**Returns:** `ApplicationCommand` object
+
+### Delete Global Application Command
+
+Delete a global command.
+
+```typescript
+import { deleteGlobalApplicationCommand } from '@discordkit/client';
+
+await deleteGlobalApplicationCommand({
+  application: '123456789',
+  command: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /applications/:application/commands/:command`
+
+**Exports:**
+- `deleteGlobalApplicationCommand`
+- `deleteGlobalApplicationCommandProcedure`
+- `deleteGlobalApplicationCommandSchema`
+
+**Returns:** `204 No Content`
+
+### Bulk Overwrite Global Application Commands
+
+Overwrite all existing global commands with a new set of commands.
+
+```typescript
+import { bulkOverwriteGlobalApplicationCommands } from '@discordkit/client';
+
+const commands = await bulkOverwriteGlobalApplicationCommands({
+  application: '123456789',
+  body: [
+    { name: 'hello', description: 'Say hello' },
+    { name: 'goodbye', description: 'Say goodbye' }
+  ]
+});
+```
+
+**Endpoint:** `PUT /applications/:application/commands`
+
+**Exports:**
+- `bulkOverwriteGlobalApplicationCommands`
+- `bulkOverwriteGlobalApplicationCommandsSafe`
+- `bulkOverwriteGlobalApplicationCommandsProcedure`
+- `bulkOverwriteGlobalApplicationCommandsSchema`
+
+**Returns:** Array of `ApplicationCommand` objects
+
+---
+
+## Guild Application Commands
+
+### Get Guild Application Commands
+
+Fetch all commands for a specific guild.
+
+```typescript
+import { getGuildApplicationCommands } from '@discordkit/client';
+
+const commands = await getGuildApplicationCommands({
+  application: '123456789',
+  guild: '987654321',
+  params: { withLocalizations: true }
+});
+```
+
+**Endpoint:** `GET /applications/:application/guilds/:guild/commands`
+
+**Exports:**
+- `getGuildApplicationCommands`
+- `getGuildApplicationCommandsSafe`
+- `getGuildApplicationCommandsProcedure`
+- `getGuildApplicationCommandsQuery`
+- `getGuildApplicationCommandsSchema`
+
+**Returns:** Array of `ApplicationCommand` objects
+
+### Get Guild Application Command
+
+Fetch a specific guild command.
+
+```typescript
+import { getGuildApplicationCommand } from '@discordkit/client';
+
+const command = await getGuildApplicationCommand({
+  application: '123456789',
+  guild: '987654321',
+  command: '555555555'
+});
+```
+
+**Endpoint:** `GET /applications/:application/guilds/:guild/commands/:command`
+
+**Returns:** `ApplicationCommand` object
+
+### Create Guild Application Command
+
+Create a new command for a specific guild.
+
+```typescript
+import { createGuildApplicationCommand } from '@discordkit/client';
+
+const command = await createGuildApplicationCommand({
+  application: '123456789',
+  guild: '987654321',
+  body: {
+    name: 'admin',
+    description: 'Admin commands',
+    defaultMemberPermissions: '8' // Administrator
+  }
+});
+```
+
+**Endpoint:** `POST /applications/:application/guilds/:guild/commands`
+
+**Exports:**
+- `createGuildApplicationCommand`
+- `createGuildApplicationCommandSafe`
+- `createGuildApplicationCommandProcedure`
+- `createGuildApplicationCommandSchema`
+
+**Returns:** `ApplicationCommand` object
+
+### Edit Guild Application Command
+
+Edit a guild-specific command.
+
+```typescript
+import { editGuildApplicationCommand } from '@discordkit/client';
+
+const updated = await editGuildApplicationCommand({
+  application: '123456789',
+  guild: '987654321',
+  command: '555555555',
+  body: { description: 'Updated admin commands' }
+});
+```
+
+**Endpoint:** `PATCH /applications/:application/guilds/:guild/commands/:command`
+
+**Returns:** `ApplicationCommand` object
+
+### Delete Guild Application Command
+
+Delete a guild-specific command.
+
+```typescript
+import { deleteGuildApplicationCommand } from '@discordkit/client';
+
+await deleteGuildApplicationCommand({
+  application: '123456789',
+  guild: '987654321',
+  command: '555555555'
+});
+```
+
+**Endpoint:** `DELETE /applications/:application/guilds/:guild/commands/:command`
+
+**Returns:** `204 No Content`
+
+### Bulk Overwrite Guild Application Commands
+
+Overwrite all existing guild commands.
+
+```typescript
+import { bulkOverwriteGuildApplicationCommands } from '@discordkit/client';
+
+const commands = await bulkOverwriteGuildApplicationCommands({
+  application: '123456789',
+  guild: '987654321',
+  body: [
+    { name: 'admin', description: 'Admin commands' }
+  ]
+});
+```
+
+**Endpoint:** `PUT /applications/:application/guilds/:guild/commands`
+
+**Returns:** Array of `ApplicationCommand` objects
+
+---
+
+## Command Permissions
+
+### Get Application Command Permissions
+
+Fetch permissions for a specific command in a guild.
+
+```typescript
+import { getApplicationCommandPermissions } from '@discordkit/client';
+
+const permissions = await getApplicationCommandPermissions({
+  application: '123456789',
+  guild: '987654321',
+  command: '555555555'
+});
+```
+
+**Endpoint:** `GET /applications/:application/guilds/:guild/commands/:command/permissions`
+
+**Returns:** `GuildApplicationCommandPermissions` object
+
+### Get Guild Application Command Permissions
+
+Fetch permissions for all commands in a guild.
+
+```typescript
+import { getGuildApplicationCommandPermissions } from '@discordkit/client';
+
+const allPermissions = await getGuildApplicationCommandPermissions({
+  application: '123456789',
+  guild: '987654321'
+});
+```
+
+**Endpoint:** `GET /applications/:application/guilds/:guild/commands/permissions`
+
+**Returns:** Array of `GuildApplicationCommandPermissions` objects
+
+### Edit Application Command Permissions
+
+Edit permissions for a command in a guild.
+
+```typescript
+import { editApplicationCommandPermissions } from '@discordkit/client';
+
+const updated = await editApplicationCommandPermissions({
+  application: '123456789',
+  guild: '987654321',
+  command: '555555555',
+  body: {
+    permissions: [
+      {
+        id: '123456',
+        type: 1, // ROLE
+        permission: true
+      }
+    ]
+  }
+});
+```
+
+**Endpoint:** `PUT /applications/:application/guilds/:guild/commands/:command/permissions`
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Returns:** `GuildApplicationCommandPermissions` object
+
+---
+
+## Procedures Export
+
+All application procedures are available as a grouped export:
+
+```typescript
+import { applicationProcedures } from '@discordkit/client';
+
+// Access any procedure
+const procedure = applicationProcedures.getCurrentApplicationProcedure;
+```

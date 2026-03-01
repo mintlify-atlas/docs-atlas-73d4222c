@@ -1,0 +1,183 @@
+---
+title: 'Stage Instances'
+description: 'API endpoints for managing Stage instances in Discord'
+---
+
+## Overview
+
+The Stage Instance resource provides endpoints for creating and managing Stage instances associated with Stage channels. Stage instances are used for live audio events where only designated speakers can talk.
+
+## Endpoints
+
+### Create Stage Instance
+
+**POST** `/stage-instances`
+
+Creates a new Stage instance associated to a Stage channel. Returns that Stage instance. Fires a Stage Instance Create Gateway event.
+
+```typescript
+export const createStageInstance: Fetcher<
+  typeof createStageInstanceSchema,
+  Stage
+> = async ({ body }) => post(`/stage-instances`, body);
+```
+
+#### Parameters
+
+- `body.channelId` - The ID of the Stage channel (required, snowflake)
+- `body.topic` - The topic of the Stage instance (required, 1-120 characters)
+- `body.privacyLevel` - The privacy level of the Stage instance (optional, default: GUILD_ONLY)
+- `body.sendStartNotification` - Notify @everyone that a Stage instance has started (optional, boolean)
+
+#### Notes
+
+- Requires the user to be a moderator of the Stage channel
+- This endpoint supports the `X-Audit-Log-Reason` header
+
+### Get Stage Instance
+
+**GET** `/stage-instances/:channel`
+
+Gets the stage instance associated with the Stage channel, if it exists.
+
+```typescript
+export const getStageInstance: Fetcher<
+  typeof getStageInstanceSchema,
+  Stage
+> = async ({ channel }) => get(`/stage-instances/${channel}`);
+```
+
+#### Parameters
+
+- `channel` - Stage channel ID (snowflake)
+
+### Modify Stage Instance
+
+**PATCH** `/stage-instances/:channel`
+
+Updates fields of an existing Stage instance. Returns the updated Stage instance. Fires a Stage Instance Update Gateway event.
+
+```typescript
+export const modifyStageInstance: Fetcher<
+  typeof modifyStageInstanceSchema,
+  Stage
+> = async ({ channel, body }) => patch(`/stage-instances/${channel}`, body);
+```
+
+#### Parameters
+
+- `channel` - Stage channel ID (snowflake)
+- `body.topic` - The topic of the Stage instance (optional, 1-120 characters)
+- `body.privacyLevel` - The privacy level of the Stage instance (optional)
+
+#### Notes
+
+- Requires the user to be a moderator of the Stage channel
+- This endpoint supports the `X-Audit-Log-Reason` header
+
+### Delete Stage Instance
+
+**DELETE** `/stage-instances/:channel`
+
+Deletes the Stage instance. Returns `204 No Content`. Fires a Stage Instance Delete Gateway event.
+
+```typescript
+export const deleteStageInstance: Fetcher<
+  typeof deleteStageInstanceSchema
+> = async ({ channel }) => remove(`/stage-instances/${channel}`);
+```
+
+#### Parameters
+
+- `channel` - Stage channel ID (snowflake)
+
+#### Notes
+
+- Requires the user to be a moderator of the Stage channel
+- This endpoint supports the `X-Audit-Log-Reason` header
+
+## Exports
+
+### Schema Exports
+
+- `createStageInstanceSchema`
+- `getStageInstanceSchema`
+- `modifyStageInstanceSchema`
+- `deleteStageInstanceSchema`
+
+### Handler Exports
+
+- `createStageInstance`
+- `createStageInstanceSafe`
+- `getStageInstance`
+- `getStageInstanceSafe`
+- `modifyStageInstance`
+- `modifyStageInstanceSafe`
+- `deleteStageInstance`
+- `deleteStageInstanceSafe`
+
+### Query Exports
+
+- `getStageInstanceQuery`
+
+### Procedure Exports
+
+All procedures are exported via `stageProcedures`:
+
+- `createStageInstanceProcedure`
+- `getStageInstanceProcedure`
+- `modifyStageInstanceProcedure`
+- `deleteStageInstanceProcedure`
+
+## Usage Example
+
+```typescript
+import {
+  createStageInstance,
+  getStageInstance,
+  modifyStageInstance,
+  deleteStageInstance,
+  StagePrivacyLevel
+} from '@discordkit/client';
+
+// Create a new Stage instance
+const stage = await createStageInstance({
+  body: {
+    channelId: '123456789',
+    topic: 'Community Q&A Session',
+    privacyLevel: StagePrivacyLevel.GUILD_ONLY,
+    sendStartNotification: true
+  }
+});
+
+// Get an existing Stage instance
+const stageInstance = await getStageInstance({
+  channel: '123456789'
+});
+
+// Modify a Stage instance
+const updatedStage = await modifyStageInstance({
+  channel: '123456789',
+  body: {
+    topic: 'Updated Q&A Topic'
+  }
+});
+
+// Delete a Stage instance
+await deleteStageInstance({
+  channel: '123456789'
+});
+```
+
+## Privacy Levels
+
+Stage instances support the following privacy levels:
+
+- `GUILD_ONLY` (default) - The Stage instance is visible only to guild members
+
+## Best Practices
+
+- Set a clear and descriptive topic for your Stage instance
+- Only moderators can create, modify, or delete Stage instances
+- Use `sendStartNotification` carefully to avoid spamming @everyone
+- Clean up Stage instances when they're no longer needed to keep your server organized

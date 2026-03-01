@@ -1,0 +1,448 @@
+---
+title: 'Emoji Resource'
+description: 'API endpoints for managing Discord guild and application emojis'
+---
+
+The Emoji resource provides endpoints to manage custom emojis for both guilds and applications. This includes creating, listing, modifying, and deleting emojis.
+
+## Guild Emojis
+
+### List Guild Emojis
+
+Get all emojis for a guild.
+
+```typescript
+import { listGuildEmojis } from '@discordkit/client';
+
+const emojis = await listGuildEmojis({
+  guild: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/emojis`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+</Accordion>
+
+**Exports:**
+- `listGuildEmojis` - Base fetcher function
+- `listGuildEmojisSafe` - Validated version
+- `listGuildEmojisProcedure` - tRPC-compatible query procedure
+- `listGuildEmojisQuery` - TanStack Query function
+- `listGuildEmojisSchema` - Valibot input schema
+
+**Returns:** Array of `Emoji` objects
+
+**Source:** [listGuildEmojis.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/emoji/listGuildEmojis.ts)
+
+### Get Guild Emoji
+
+Get a specific emoji from a guild.
+
+```typescript
+import { getGuildEmoji } from '@discordkit/client';
+
+const emoji = await getGuildEmoji({
+  guild: '123456789',
+  emoji: '987654321'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/emojis/:emoji`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+  - `emoji` (snowflake) - Emoji ID
+</Accordion>
+
+**Exports:**
+- `getGuildEmoji`
+- `getGuildEmojiSafe`
+- `getGuildEmojiProcedure`
+- `getGuildEmojiQuery`
+- `getGuildEmojiSchema`
+
+**Returns:** `Emoji` object
+
+### Create Guild Emoji
+
+Create a new custom emoji for the guild.
+
+```typescript
+import { createGuildEmoji } from '@discordkit/client';
+
+const emoji = await createGuildEmoji({
+  guild: '123456789',
+  body: {
+    name: 'custom_emoji',
+    image: 'data:image/png;base64,iVBORw0KG...',
+    roles: ['role-id-1', 'role-id-2']
+  }
+});
+```
+
+**Endpoint:** `POST /guilds/:guild/emojis`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+
+  **Body Parameters:**
+  - `name` (string) - Name of the emoji
+  - `image` (data URI) - The 128x128 emoji image as data URI
+  - `roles` (array) - Role IDs allowed to use this emoji
+</Accordion>
+
+**Exports:**
+- `createGuildEmoji`
+- `createGuildEmojiSafe`
+- `createGuildEmojiProcedure`
+- `createGuildEmojiSchema`
+
+**Returns:** `Emoji` object
+
+**Permissions:** Requires `MANAGE_GUILD_EXPRESSIONS` permission
+
+<Warning>
+  Emojis and animated emojis have a maximum file size of 256kb. Uploading larger emojis will fail with 400 Bad Request.
+</Warning>
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+### Modify Guild Emoji
+
+Modify an existing guild emoji.
+
+```typescript
+import { modifyGuildEmoji } from '@discordkit/client';
+
+const updated = await modifyGuildEmoji({
+  guild: '123456789',
+  emoji: '987654321',
+  body: {
+    name: 'renamed_emoji',
+    roles: ['role-id-1']
+  }
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild/emojis/:emoji`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+  - `emoji` (snowflake) - Emoji ID
+
+  **Body Parameters (all optional):**
+  - `name` (string) - New name for emoji
+  - `roles` (array) - Role IDs allowed to use this emoji
+</Accordion>
+
+**Exports:**
+- `modifyGuildEmoji`
+- `modifyGuildEmojiSafe`
+- `modifyGuildEmojiProcedure`
+- `modifyGuildEmojiSchema`
+
+**Returns:** `Emoji` object
+
+**Permissions:** Requires `MANAGE_GUILD_EXPRESSIONS` permission
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+### Delete Guild Emoji
+
+Delete a guild emoji.
+
+```typescript
+import { deleteGuildEmoji } from '@discordkit/client';
+
+await deleteGuildEmoji({
+  guild: '123456789',
+  emoji: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /guilds/:guild/emojis/:emoji`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+  - `emoji` (snowflake) - Emoji ID
+</Accordion>
+
+**Exports:**
+- `deleteGuildEmoji`
+- `deleteGuildEmojiProcedure`
+- `deleteGuildEmojiSchema`
+
+**Returns:** `204 No Content`
+
+**Permissions:** Requires `MANAGE_GUILD_EXPRESSIONS` permission
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+---
+
+## Application Emojis
+
+### List Application Emojis
+
+Get all emojis for an application.
+
+```typescript
+import { listApplicationEmojis } from '@discordkit/client';
+
+const emojis = await listApplicationEmojis({
+  application: '123456789'
+});
+```
+
+**Endpoint:** `GET /applications/:application/emojis`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+</Accordion>
+
+**Exports:**
+- `listApplicationEmojis`
+- `listApplicationEmojisSafe`
+- `listApplicationEmojisProcedure`
+- `listApplicationEmojisQuery`
+- `listApplicationEmojisSchema`
+
+**Returns:** Object containing `items` array of `Emoji` objects
+
+### Get Application Emoji
+
+Get a specific emoji from an application.
+
+```typescript
+import { getApplicationEmoji } from '@discordkit/client';
+
+const emoji = await getApplicationEmoji({
+  application: '123456789',
+  emoji: '987654321'
+});
+```
+
+**Endpoint:** `GET /applications/:application/emojis/:emoji`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+  - `emoji` (snowflake) - Emoji ID
+</Accordion>
+
+**Exports:**
+- `getApplicationEmoji`
+- `getApplicationEmojiSafe`
+- `getApplicationEmojiProcedure`
+- `getApplicationEmojiQuery`
+- `getApplicationEmojiSchema`
+
+**Returns:** `Emoji` object
+
+### Create Application Emoji
+
+Create a new emoji for an application.
+
+```typescript
+import { createApplicationEmoji } from '@discordkit/client';
+
+const emoji = await createApplicationEmoji({
+  application: '123456789',
+  body: {
+    name: 'app_emoji',
+    image: 'data:image/png;base64,iVBORw0KG...'
+  }
+});
+```
+
+**Endpoint:** `POST /applications/:application/emojis`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+
+  **Body Parameters:**
+  - `name` (string) - Name of the emoji
+  - `image` (data URI) - The 128x128 emoji image as data URI
+</Accordion>
+
+**Exports:**
+- `createApplicationEmoji`
+- `createApplicationEmojiSafe`
+- `createApplicationEmojiProcedure`
+- `createApplicationEmojiSchema`
+
+**Returns:** `Emoji` object
+
+<Warning>
+  Emojis and animated emojis have a maximum file size of 256kb. Uploading larger emojis will fail with 400 Bad Request.
+</Warning>
+
+### Modify Application Emoji
+
+Modify an existing application emoji.
+
+```typescript
+import { modifyApplicationEmoji } from '@discordkit/client';
+
+const updated = await modifyApplicationEmoji({
+  application: '123456789',
+  emoji: '987654321',
+  body: {
+    name: 'renamed_app_emoji'
+  }
+});
+```
+
+**Endpoint:** `PATCH /applications/:application/emojis/:emoji`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+  - `emoji` (snowflake) - Emoji ID
+
+  **Body Parameters:**
+  - `name` (string) - New name for emoji
+</Accordion>
+
+**Exports:**
+- `modifyApplicationEmoji`
+- `modifyApplicationEmojiSafe`
+- `modifyApplicationEmojiProcedure`
+- `modifyApplicationEmojiSchema`
+
+**Returns:** `Emoji` object
+
+### Delete Application Emoji
+
+Delete an application emoji.
+
+```typescript
+import { deleteApplicationEmoji } from '@discordkit/client';
+
+await deleteApplicationEmoji({
+  application: '123456789',
+  emoji: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /applications/:application/emojis/:emoji`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+  - `emoji` (snowflake) - Emoji ID
+</Accordion>
+
+**Exports:**
+- `deleteApplicationEmoji`
+- `deleteApplicationEmojiProcedure`
+- `deleteApplicationEmojiSchema`
+
+**Returns:** `204 No Content`
+
+---
+
+## Procedures Export
+
+All emoji procedures are available as a grouped export:
+
+```typescript
+import { emojiProcedures } from '@discordkit/client';
+
+// Access any procedure
+const procedure = emojiProcedures.listGuildEmojisProcedure;
+```
+
+---
+
+## Emoji Object
+
+The `Emoji` object represents a Discord emoji.
+
+**Key Fields:**
+- `id` (snowflake) - Emoji ID
+- `name` (string) - Emoji name
+- `roles` (array) - Role IDs allowed to use this emoji
+- `user` (User) - User that created the emoji
+- `requireColons` (boolean) - Whether emoji must be wrapped in colons
+- `managed` (boolean) - Whether emoji is managed
+- `animated` (boolean) - Whether emoji is animated
+- `available` (boolean) - Whether emoji can be used (may be false due to server boost loss)
+
+---
+
+## Using Emojis
+
+### In Messages
+
+To use custom emojis in messages, use the format `<:name:id>` for static emojis or `<a:name:id>` for animated emojis:
+
+```typescript
+import { createMessage } from '@discordkit/client';
+
+await createMessage({
+  channel: '123456789',
+  body: {
+    content: 'Hello <:custom_emoji:987654321>!'
+  }
+});
+```
+
+### In Reactions
+
+For reactions, use the `name:id` format:
+
+```typescript
+import { createReaction } from '@discordkit/client';
+
+await createReaction({
+  channel: '123456789',
+  message: '987654321',
+  emoji: 'custom_emoji:555555555'
+});
+```
+
+### Unicode Emojis
+
+For unicode emojis, use the emoji character directly:
+
+```typescript
+await createReaction({
+  channel: '123456789',
+  message: '987654321',
+  emoji: encodeURIComponent('👍')
+});
+```
+
+---
+
+## Emoji Limits
+
+**Guild Emojis:**
+- Standard guilds: 50 static + 50 animated
+- Level 1 boost: 100 static + 100 animated
+- Level 2 boost: 150 static + 150 animated
+- Level 3 boost: 250 static + 250 animated
+
+**Application Emojis:**
+- 2000 emojis per application (includes both static and animated)
+
+**File Requirements:**
+- Format: PNG, JPG, or GIF (for animated)
+- Size: 128x128 pixels
+- Max file size: 256kb

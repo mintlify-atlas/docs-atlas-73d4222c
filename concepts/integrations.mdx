@@ -1,0 +1,638 @@
+---
+title: Integrations
+description: Using DiscordKit with tRPC and React Query
+---
+
+## Overview
+
+DiscordKit provides first-class integrations with popular frameworks to streamline API development:
+
+- **tRPC**: Type-safe API routes with end-to-end type safety
+- **React Query**: Declarative data fetching with caching and state management
+
+Both integrations work seamlessly with DiscordKit's validation system and request handlers.
+
+## tRPC Integration
+
+The tRPC integration converts DiscordKit fetchers into tRPC procedures with automatic input/output validation.
+
+### Setup
+
+<Steps>
+  <Step title="Install Dependencies">
+    ```bash
+    npm install @trpc/server @trpc/client @trpc/react-query
+    npm install @discordkit/client @discordkit/core
+    ```
+  </Step>
+
+  <Step title="Configure Session">
+    Set up your Discord session with authentication:
+
+    ```typescript
+    // app/api/trpc/[trpc]/trpc.ts
+    import { initTRPC } from '@trpc/server';
+    import { discord } from '@discordkit/client';
+
+    const token = process.env.BOT_TOKEN;
+    discord.setToken(`Bot ${token}`);
+
+    const t = initTRPC.create();
+    export const router = t.router;
+    export const publicProcedure = t.procedure;
+    ```
+
+    Source: `/home/daytona/workspace/source/examples/with-nextjs/src/app/api/trpc/[trpc]/trpc.ts:5`
+  </Step>
+
+  <Step title="Create Router">
+    Build your tRPC router using DiscordKit procedures:
+
+    ```typescript
+    import { getCurrentApplicationProcedure } from '@discordkit/client';
+
+    export const router = t.router({
+      getCurrentApplication: getCurrentApplicationProcedure(publicProcedure)
+    });
+
+    export type Router = typeof router;
+    ```
+  </Step>
+</Steps>
+
+### The toProcedure Helper
+
+`toProcedure` transforms a DiscordKit fetcher into a tRPC procedure:
+
+```typescript
+import { toProcedure } from '@discordkit/core';
+import * as v from 'valibot';
+
+export const getCurrentApplicationProcedure = toProcedure(
+  `query`,                    // Procedure type: 'query' | 'mutation' | 'subscription'
+  getCurrentApplication,      // Fetcher function
+  null,                       // Input schema (null if no input)
+  applicationSchema           // Output schema
+);
+```
+
+Source: `/home/daytona/workspace/source/packages/client/src/application/getCurrentApplication.ts:26`
+
+### How It Works
+
+The `toProcedure` function creates a higher-order function that accepts a tRPC procedure builder:
+
+```typescript
+export const toProcedure =
+  <
+    T extends ProcedureType,
+    I extends Schema | null = null,
+    O extends Schema | null = null
+  >(
+    type: T,
+    fn: Fetcher<I extends Schema ? I : null, Result<O>>,
+    input?: I,
+    output?: O
+  ) =>
+  (
+    procedure: AnyProcedureBuilder,
+    errorHandler?: (error: unknown) => void
+  ): BaseProcedure<T, I, O> => {
+    try {
+      if (isNonNullable(input) && isNonNullable(output)) {
+        return procedure
+          .input(input)
+          .output(output)
+          [type](async (opts: { input: unknown }) => fn(opts.input));
+      }
+      if (isNonNullable(input) && !isNonNullable(output)) {
+        return procedure.input(input)[type](async (opts) => fn(opts.input));
+      }
+      if (!isNonNullable(input) && isNonNullable(output)) {
+        return procedure.output(output)[type](async () => fn());
+      }
+      return procedure[type](async () => fn());
+    } catch (error: unknown) {
+      if (typeof errorHandler === `function`) {
+        errorHandler(error);
+      }
+      throw new Error(`Unhandled Procedure Error!`, { cause: error });
+    }
+  };
+```
+
+Source: `/home/daytona/workspace/source/packages/core/src/requests/toProcedure.ts:53`
+
+### Procedure Types
+
+<Tabs>
+  <Tab title="Query">
+    Use queries for read operations (GET requests):
+
+    ```typescript
+    import { getGlobalApplicationCommandsProcedure } from '@discordkit/client';
+
+    export const router = t.router({
+      getCommands: getGlobalApplicationCommandsProcedure(publicProcedure)
+    });
+    ```
+  </Tab>
+
+  <Tab title="Mutation">
+    Use mutations for write operations (POST, PATCH, DELETE):
+
+    ```typescript
+    import { createWebhookProcedure } from '@discordkit/client';
+
+    export const router = t.router({
+      createWebhook: createWebhookProcedure(publicProcedure)
+    });
+    ```
+
+    Source: `/home/daytona/workspace/source/packages/client/src/webhook/createWebhook.ts:50`
+  </Tab>
+</Tabs>
+
+### Error Handling in tRPC
+
+Provide custom error handlers to procedures:
+
+```typescript
+import { TRPCError } from '@trpc/server';
+import { summarize, ValiError } from 'valibot';
+
+const loggedProcedure = publicProcedure.use(async (opts) => {
+  const result = await opts.next();
+
+  if (!result.ok) {
+    // Log validation errors
+    console.error(summarize(result.error.cause.issues));
+  }
+
+  return result;
+});
+
+export const router = t.router({
+  getCurrentApplication: getCurrentApplicationProcedure(
+    loggedProcedure,
+    (cause) => {
+      throw new TRPCError({
+        code: `INTERNAL_SERVER_ERROR`,
+        message:
+          cause instanceof ValiError
+            ? summarize(cause.issues)
+            : `Failed to run procedure "getCurrentApplication"`,
+        cause
+      });
+    }
+  )
+});
+```
+
+Source: `/home/daytona/workspace/source/examples/with-nextjs/src/app/api/trpc/[trpc]/trpc.ts:22`
+
+### Full Router Example
+
+```typescript
+import { initTRPC, TRPCError } from '@trpc/server';
+import { 
+  discord,
+  getCurrentApplicationProcedure,
+  getGlobalApplicationCommandsProcedure,
+  createWebhookProcedure
+} from '@discordkit/client';
+import { summarize, ValiError } from 'valibot';
+
+const token = process.env.BOT_TOKEN;
+discord.setToken(`Bot ${token}`);
+
+const t = initTRPC.create();
+const publicProcedure = t.procedure;
+
+const withErrorHandling = (cause: unknown) => {
+  throw new TRPCError({
+    code: `INTERNAL_SERVER_ERROR`,
+    message: cause instanceof ValiError ? summarize(cause.issues) : `Request failed`,
+    cause
+  });
+};
+
+export const router = t.router({
+  // Queries
+  getCurrentApplication: getCurrentApplicationProcedure(
+    publicProcedure,
+    withErrorHandling
+  ),
+  getGlobalApplicationCommands: getGlobalApplicationCommandsProcedure(
+    publicProcedure,
+    withErrorHandling
+  ),
+  
+  // Mutations
+  createWebhook: createWebhookProcedure(
+    publicProcedure,
+    withErrorHandling
+  )
+});
+
+export type Router = typeof router;
+```
+
+## React Query Integration
+
+The React Query integration provides hooks for data fetching with automatic caching, refetching, and state management.
+
+### Setup
+
+<Steps>
+  <Step title="Install Dependencies">
+    ```bash
+    npm install @tanstack/react-query @discordkit/client
+    ```
+  </Step>
+
+  <Step title="Create Query Client">
+    Set up React Query provider:
+
+    ```typescript
+    // app/providers.tsx
+    'use client';
+    import React, { useMemo } from 'react';
+    import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+    import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+
+    export const Providers: React.FC<{ children: React.ReactNode }> = ({
+      children
+    }) => {
+      const queryClient = useMemo(
+        () =>
+          new QueryClient({
+            defaultOptions: { queries: { staleTime: 5000 } }
+          }),
+        []
+      );
+
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+          <ReactQueryDevtools />
+        </QueryClientProvider>
+      );
+    };
+    ```
+
+    Source: `/home/daytona/workspace/source/examples/with-nextjs/src/app/providers.tsx:23`
+  </Step>
+
+  <Step title="Configure Authentication">
+    Set up Discord session (typically in an API route or server action):
+
+    ```typescript
+    import { discord } from '@discordkit/client';
+
+    discord.setToken(`Bot ${process.env.BOT_TOKEN}`);
+    ```
+  </Step>
+</Steps>
+
+### The toQuery Helper
+
+`toQuery` transforms a DiscordKit fetcher into a React Query query function:
+
+```typescript
+import { toQuery } from '@discordkit/core';
+
+export const getCurrentApplicationQuery = toQuery(getCurrentApplication);
+```
+
+Source: `/home/daytona/workspace/source/packages/client/src/application/getCurrentApplication.ts:33`
+
+### How It Works
+
+The `toQuery` function creates a curried function compatible with React Query:
+
+```typescript
+export const toQuery =
+  <S extends GenericSchema | null, R, T extends Fetcher<S, R>>(
+    fn: T
+  ): Parameters<T>[`length`] extends 0
+    ? () => QueryFunction<Awaited<ReturnType<T>>>
+    : (config: Parameters<T>[0]) => QueryFunction<Awaited<ReturnType<T>>> =>
+  // Returns a function that accepts config and returns a query function
+  (...config: [unknown]) =>
+  async () =>
+    fn(...config);
+```
+
+Source: `/home/daytana/workspace/source/packages/core/src/requests/toQuery.ts:42`
+
+### Using with useQuery
+
+<Tabs>
+  <Tab title="No Parameters">
+    For fetchers with no input parameters:
+
+    ```typescript
+    'use client';
+    import { useQuery } from '@tanstack/react-query';
+    import { getCurrentApplicationQuery } from '@discordkit/client';
+
+    export function ApplicationInfo() {
+      const { data, isLoading, error } = useQuery({
+        queryKey: ['application'],
+        queryFn: getCurrentApplicationQuery()
+      });
+
+      if (isLoading) return <div>Loading...</div>;
+      if (error) return <div>Error: {error.message}</div>;
+
+      return <div>{data.name}</div>;
+    }
+    ```
+  </Tab>
+
+  <Tab title="With Parameters">
+    For fetchers that require input:
+
+    ```typescript
+    'use client';
+    import { useQuery } from '@tanstack/react-query';
+    import { getGlobalApplicationCommandsQuery } from '@discordkit/client';
+
+    export function CommandList({ applicationId }: { applicationId: string }) {
+      const { data, isLoading } = useQuery({
+        queryKey: ['commands', applicationId],
+        queryFn: getGlobalApplicationCommandsQuery({
+          application: applicationId,
+          params: { withLocalizations: true }
+        })
+      });
+
+      if (isLoading) return <div>Loading commands...</div>;
+
+      return (
+        <ul>
+          {data?.map(cmd => (
+            <li key={cmd.id}>{cmd.name}</li>
+          ))}
+        </ul>
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+### Query Keys Best Practices
+
+Structure query keys hierarchically:
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { 
+  getCurrentApplicationQuery,
+  getGlobalApplicationCommandsQuery,
+  getGuildMemberQuery
+} from '@discordkit/client';
+
+// Application queries
+useQuery({
+  queryKey: ['application'],
+  queryFn: getCurrentApplicationQuery()
+});
+
+useQuery({
+  queryKey: ['application', 'commands', applicationId],
+  queryFn: getGlobalApplicationCommandsQuery({ application: applicationId })
+});
+
+// Guild queries
+useQuery({
+  queryKey: ['guild', guildId, 'member', userId],
+  queryFn: getGuildMemberQuery({ guild: guildId, user: userId })
+});
+```
+
+### Mutations
+
+Use `useMutation` for write operations:
+
+```typescript
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createWebhook } from '@discordkit/client';
+
+export function CreateWebhookForm({ channelId }: { channelId: string }) {
+  const queryClient = useQueryClient();
+  
+  const mutation = useMutation({
+    mutationFn: createWebhook,
+    onSuccess: () => {
+      // Invalidate and refetch
+      queryClient.invalidateQueries({ queryKey: ['webhooks', channelId] });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    
+    mutation.mutate({
+      channel: channelId,
+      body: {
+        name: formData.get('name') as string,
+        avatar: formData.get('avatar') as string
+      }
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input name="name" placeholder="Webhook name" required />
+      <input name="avatar" placeholder="Avatar URL" />
+      <button disabled={mutation.isPending}>
+        {mutation.isPending ? 'Creating...' : 'Create Webhook'}
+      </button>
+      {mutation.isError && <div>Error: {mutation.error.message}</div>}
+    </form>
+  );
+}
+```
+
+## Combined: tRPC + React Query
+
+For the best developer experience, combine both integrations:
+
+### Backend (tRPC Router)
+
+```typescript
+// app/api/trpc/[trpc]/trpc.ts
+import { initTRPC } from '@trpc/server';
+import { discord, getCurrentApplicationProcedure } from '@discordkit/client';
+
+discord.setToken(`Bot ${process.env.BOT_TOKEN}`);
+
+const t = initTRPC.create();
+
+export const router = t.router({
+  getCurrentApplication: getCurrentApplicationProcedure(t.procedure)
+});
+
+export type Router = typeof router;
+```
+
+### Frontend (React Query via tRPC)
+
+```typescript
+// app/providers.tsx
+'use client';
+import React, { useMemo } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { httpBatchLink } from '@trpc/client';
+import { createTRPCReact } from '@trpc/react-query';
+import type { Router } from './api/trpc/[trpc]/trpc';
+
+export const trpc = createTRPCReact<Router>();
+
+export const TrpcProvider: React.FC<{ children: React.ReactNode }> = ({
+  children
+}) => {
+  const queryClient = useMemo(
+    () => new QueryClient({
+      defaultOptions: { queries: { staleTime: 5000 } }
+    }),
+    []
+  );
+
+  const trpcClient = useMemo(
+    () => trpc.createClient({
+      links: [
+        httpBatchLink({
+          url: '/api/trpc'
+        })
+      ]
+    }),
+    []
+  );
+
+  return (
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        {children}
+      </QueryClientProvider>
+    </trpc.Provider>
+  );
+};
+```
+
+Source: `/home/daytona/workspace/source/examples/with-nextjs/src/app/providers.tsx:20`
+
+### Using in Components
+
+```typescript
+'use client';
+import Image from 'next/image';
+import { userAvatar } from '@discordkit/client/images/userAvatar';
+import { trpc } from '../app/providers';
+
+export const ApplicationInfo: React.FC = () => {
+  const { data, isLoading } = trpc.getCurrentApplication.useQuery();
+
+  if (isLoading) return <div>Loading...</div>;
+
+  if (data) {
+    return (
+      <div>
+        {data.icon && (
+          <Image
+            alt={data.name}
+            src={userAvatar({
+              user: data.id,
+              avatar: data.icon,
+              params: { size: 128 }
+            })}
+            width={128}
+            height={128}
+          />
+        )}
+        <h1>{data.name}</h1>
+      </div>
+    );
+  }
+  
+  return null;
+};
+```
+
+Source: `/home/daytona/workspace/source/examples/with-nextjs/src/components/ApplicationInfo.tsx:8`
+
+## Available Procedures
+
+Every DiscordKit fetcher has a corresponding `*Procedure` export:
+
+```typescript
+import {
+  // Application
+  getCurrentApplicationProcedure,
+  getGlobalApplicationCommandsProcedure,
+  createGlobalApplicationCommandProcedure,
+  
+  // Webhooks
+  createWebhookProcedure,
+  getWebhookProcedure,
+  executeWebhookProcedure,
+  
+  // Messages
+  createMessageProcedure,
+  getMessageProcedure,
+  editMessageProcedure,
+  
+  // And many more...
+} from '@discordkit/client';
+```
+
+Source: `/home/daytona/workspace/source/packages/client/src/application/procedures.ts:1`
+
+## Available Queries
+
+Every DiscordKit fetcher has a corresponding `*Query` export:
+
+```typescript
+import {
+  getCurrentApplicationQuery,
+  getGlobalApplicationCommandsQuery,
+  getWebhookQuery,
+  getMessageQuery
+  // And many more...
+} from '@discordkit/client';
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use tRPC for Full-Stack" icon="layer-group">
+    Combine tRPC + React Query for end-to-end type safety in full-stack apps.
+  </Card>
+  
+  <Card title="Standalone React Query" icon="react">
+    Use React Query directly for client-only apps or existing APIs.
+  </Card>
+  
+  <Card title="Error Handling" icon="triangle-exclamation">
+    Provide custom error handlers to tRPC procedures for better error messages.
+  </Card>
+  
+  <Card title="Query Key Structure" icon="sitemap">
+    Use hierarchical query keys for efficient cache invalidation.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/concepts/authentication">
+    Learn about token configuration
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore all available endpoints
+  </Card>
+</CardGroup>

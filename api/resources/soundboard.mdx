@@ -1,0 +1,280 @@
+---
+title: 'Soundboard'
+description: 'API endpoints for managing soundboard sounds in Discord'
+---
+
+## Overview
+
+The Soundboard resource provides endpoints for managing soundboard sounds, including listing, creating, modifying, and playing sounds in voice channels.
+
+## Endpoints
+
+### List Default Soundboard Sounds
+
+**GET** `/soundboard-default-sounds`
+
+Returns an array of soundboard sound objects that can be used by all users.
+
+```typescript
+export const listDefaultSoundboardSounds: Fetcher<
+  null,
+  SoundboardSound[]
+> = async () => get(`/soundboard-default-sounds`);
+```
+
+#### Notes
+
+- These are global sounds available to all Discord users
+- No authentication required for this endpoint
+
+### List Guild Soundboard Sounds
+
+**GET** `/guilds/:guild/soundboard-sounds`
+
+Returns a list of the guild's soundboard sounds. Includes `user` fields if the bot has the `CREATE_GUILD_EXPRESSIONS` or `MANAGE_GUILD_EXPRESSIONS` permission.
+
+```typescript
+export const listGuildSoundboardSounds: Fetcher<
+  typeof listGuildSoundboardSoundsSchema,
+  SoundboardSound[]
+> = async ({ guild }) => get(`/guilds/${guild}/soundboard-sounds`);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+
+### Get Guild Soundboard Sound
+
+**GET** `/guilds/:guild/soundboard-sounds/:sound`
+
+Returns a soundboard sound object for the given sound ID. Includes the `user` field if the bot has the `CREATE_GUILD_EXPRESSIONS` or `MANAGE_GUILD_EXPRESSIONS` permission.
+
+```typescript
+export const getGuildSoundboardSound: Fetcher<
+  typeof getGuildSoundboardSoundSchema,
+  SoundboardSound
+> = async ({ guild, sound }) =>
+  get(`/guilds/${guild}/soundboard-sounds/${sound}`);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `sound` - Sound ID (snowflake)
+
+### Create Guild Soundboard Sound
+
+**POST** `/guilds/:guild/soundboard-sounds`
+
+Create a new soundboard sound for the guild. Requires the `CREATE_GUILD_EXPRESSIONS` permission. Returns the new soundboard sound object on success. Fires a Guild Soundboard Sound Create Gateway event.
+
+```typescript
+export const createGuildSoundboardSound: Fetcher<
+  typeof createGuildSoundboardSoundSchema,
+  SoundboardSound
+> = async ({ guild, body }) => post(`/guilds/${guild}/soundboard-sounds`, body);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `body.name` - Name of the soundboard sound (required, 2-32 characters)
+- `body.sound` - The mp3 or ogg sound data, base64 encoded, similar to image data (required, data URI)
+- `body.volumn` - The volume of the soundboard sound, from 0 to 1 (optional, defaults to 1)
+- `body.emojiId` - The ID of the custom emoji for the soundboard sound (optional, nullable, snowflake)
+- `body.emojiName` - The unicode character of a standard emoji for the soundboard sound (optional, nullable)
+
+#### Notes
+
+- Soundboard sounds have a max file size of 512kb and a max duration of 5.2 seconds
+- This endpoint supports the `X-Audit-Log-Reason` header
+
+### Modify Guild Soundboard Sound
+
+**PATCH** `/guilds/:guild/soundboard-sounds/:sound`
+
+Modify the given soundboard sound. For sounds created by the current user, requires either the `CREATE_GUILD_EXPRESSIONS` or `MANAGE_GUILD_EXPRESSIONS` permission. For other sounds, requires the `MANAGE_GUILD_EXPRESSIONS` permission. Returns the updated soundboard sound object on success. Fires a Guild Soundboard Sound Update Gateway event.
+
+```typescript
+export const modifyGuildSoundboardSound: Fetcher<
+  typeof modifyGuildSoundboardSoundSchema,
+  SoundboardSound
+> = async ({ guild, sound, body }) =>
+  patch(`/guilds/${guild}/soundboard-sounds/${sound}`, body);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `sound` - Sound ID (snowflake)
+- `body.name` - Name of the soundboard sound (optional, 2-32 characters)
+- `body.volumn` - The volume of the soundboard sound, from 0 to 1 (optional, nullable)
+- `body.emojiId` - The ID of the custom emoji for the soundboard sound (optional, nullable, snowflake)
+- `body.emojiName` - The unicode character of a standard emoji for the soundboard sound (optional, nullable)
+
+#### Notes
+
+- All parameters to this endpoint are optional
+- This endpoint supports the `X-Audit-Log-Reason` header
+
+### Delete Guild Soundboard Sound
+
+**DELETE** `/guilds/:guild/soundboard-sounds/:sound`
+
+Delete the given soundboard sound. For sounds created by the current user, requires either the `CREATE_GUILD_EXPRESSIONS` or `MANAGE_GUILD_EXPRESSIONS` permission. For other sounds, requires the `MANAGE_GUILD_EXPRESSIONS` permission. Returns `204 No Content` on success. Fires a Guild Soundboard Sound Delete Gateway event.
+
+```typescript
+export const deleteGuildSoundboardSound: Fetcher<
+  typeof deleteGuildSoundboardSoundSchema
+> = async ({ guild, sound }) =>
+  remove(`/guilds/${guild}/soundboard-sounds/${sound}`);
+```
+
+#### Parameters
+
+- `guild` - Guild ID (snowflake)
+- `sound` - Sound ID (snowflake)
+
+### Send Soundboard Sound
+
+**POST** `/channels/:channel/send-soundboard-sound`
+
+Send a soundboard sound to a voice channel the user is connected to. Fires a Voice Channel Effect Send Gateway event.
+
+```typescript
+export const sendSoundboardSound: Fetcher<
+  typeof sendSoundboardSoundSchema
+> = async ({ channel, body }) =>
+  post(`/channels/${channel}/send-soundboard-sound`, body);
+```
+
+#### Parameters
+
+- `channel` - Voice channel ID (snowflake)
+- `body.soundId` - The ID of the soundboard sound to play (required, snowflake)
+- `body.sourceGuildId` - The ID of the guild the soundboard sound is from (optional, required to play sounds from different servers)
+
+#### Notes
+
+- Requires the `SPEAK` and `USE_SOUNDBOARD` permissions
+- Also requires the `USE_EXTERNAL_SOUNDS` permission if the sound is from a different server
+- User must be connected to the voice channel
+- User's voice state cannot have `deaf`, `self_deaf`, `mute`, or `suppress` enabled
+
+## Exports
+
+### Schema Exports
+
+- `listGuildSoundboardSoundsSchema`
+- `getGuildSoundboardSoundSchema`
+- `createGuildSoundboardSoundSchema`
+- `modifyGuildSoundboardSoundSchema`
+- `deleteGuildSoundboardSoundSchema`
+- `sendSoundboardSoundSchema`
+
+### Handler Exports
+
+- `listDefaultSoundboardSounds`
+- `listDefaultSoundboardSoundsSafe`
+- `listGuildSoundboardSounds`
+- `listGuildSoundboardSoundsSafe`
+- `getGuildSoundboardSound`
+- `getGuildSoundboardSoundSafe`
+- `createGuildSoundboardSound`
+- `createGuildSoundboardSoundSafe`
+- `modifyGuildSoundboardSound`
+- `modifyGuildSoundboardSoundSafe`
+- `deleteGuildSoundboardSound`
+- `deleteGuildSoundboardSoundSafe`
+- `sendSoundboardSound`
+- `sendSoundboardSoundSafe`
+
+### Query Exports
+
+- `listDefaultSoundboardSoundsQuery`
+- `listGuildSoundboardSoundsQuery`
+- `getGuildSoundboardSoundQuery`
+
+### Procedure Exports
+
+All procedures are exported via `soundboardProcedures`:
+
+- `listDefaultSoundboardSoundsProcedure`
+- `listGuildSoundboardSoundsProcedure`
+- `getGuildSoundboardSoundProcedure`
+- `createGuildSoundboardSoundProcedure`
+- `modifyGuildSoundboardSoundProcedure`
+- `deleteGuildSoundboardSoundProcedure`
+- `sendSoundboardSoundProcedure`
+
+## Usage Example
+
+```typescript
+import {
+  listDefaultSoundboardSounds,
+  listGuildSoundboardSounds,
+  createGuildSoundboardSound,
+  modifyGuildSoundboardSound,
+  sendSoundboardSound,
+  deleteGuildSoundboardSound
+} from '@discordkit/client';
+
+// List all default sounds
+const defaultSounds = await listDefaultSoundboardSounds();
+
+// List guild-specific sounds
+const guildSounds = await listGuildSoundboardSounds({
+  guild: '123456789'
+});
+
+// Create a new soundboard sound
+const newSound = await createGuildSoundboardSound({
+  guild: '123456789',
+  body: {
+    name: 'Epic Sound',
+    sound: 'data:audio/mpeg;base64,//uQx...', // base64 encoded mp3/ogg
+    volumn: 0.8,
+    emojiName: '🎵'
+  }
+});
+
+// Modify a soundboard sound
+const updatedSound = await modifyGuildSoundboardSound({
+  guild: '123456789',
+  sound: newSound.id,
+  body: {
+    name: 'Even More Epic Sound',
+    volumn: 0.9
+  }
+});
+
+// Send a soundboard sound in a voice channel
+await sendSoundboardSound({
+  channel: '987654321',
+  body: {
+    soundId: newSound.id
+  }
+});
+
+// Delete a soundboard sound
+await deleteGuildSoundboardSound({
+  guild: '123456789',
+  sound: newSound.id
+});
+```
+
+## Sound Format Requirements
+
+- Supported formats: MP3 or OGG
+- Maximum file size: 512kb
+- Maximum duration: 5.2 seconds
+- Audio must be base64 encoded as a data URI
+
+## Permissions
+
+- `CREATE_GUILD_EXPRESSIONS` - Required to create sounds
+- `MANAGE_GUILD_EXPRESSIONS` - Required to modify/delete sounds created by others
+- `USE_SOUNDBOARD` - Required to play sounds
+- `USE_EXTERNAL_SOUNDS` - Required to play sounds from other servers
+- `SPEAK` - Required to send sounds in voice channels

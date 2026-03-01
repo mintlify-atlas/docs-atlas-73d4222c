@@ -1,0 +1,458 @@
+---
+title: Webhook
+description: API reference for Discord webhook resource endpoints
+---
+
+Webhooks are a way to send messages to Discord channels without a bot. All webhook endpoints support audit log reasons via the `X-Audit-Log-Reason` header where noted.
+
+## Available Endpoints
+
+### Create Webhook
+
+Create a new webhook and return a webhook object on success.
+
+**POST** `/channels/:channel/webhooks`
+
+```typescript
+import { createWebhook, createWebhookSchema } from "@discordkit/client";
+
+const webhook = await createWebhook({
+  channel: "123456789",
+  body: {
+    name: "My Webhook",
+    avatar: "https://example.com/avatar.png"
+  }
+});
+```
+
+**Permissions:** Requires `MANAGE_WEBHOOKS` permission.
+
+**Supports Audit Log Reason:** Yes
+
+**Exports:**
+- `createWebhook` - Handler function
+- `createWebhookSchema` - Valibot schema for validation
+- `createWebhookSafe` - Validated handler
+- `createWebhookProcedure` - tRPC procedure (mutation)
+
+---
+
+### Delete Webhook
+
+Delete a webhook permanently.
+
+**DELETE** `/webhooks/:webhook`
+
+```typescript
+import { deleteWebhook } from "@discordkit/client";
+
+await deleteWebhook({ webhook: "123456789" });
+```
+
+**Permissions:** Requires `MANAGE_WEBHOOKS` permission.
+
+**Supports Audit Log Reason:** Yes
+
+**Exports:**
+- `deleteWebhook` - Handler function
+- `deleteWebhookSchema` - Valibot schema for validation
+- `deleteWebhookSafe` - Validated handler
+- `deleteWebhookProcedure` - tRPC procedure (mutation)
+
+---
+
+### Delete Webhook Message
+
+Delete a message that was created by the webhook.
+
+**DELETE** `/webhooks/:webhook/:token/messages/:message`
+
+```typescript
+import { deleteWebhookMessage } from "@discordkit/client";
+
+await deleteWebhookMessage({
+  webhook: "123456789",
+  token: "webhook_token",
+  message: "987654321",
+  params: {
+    threadId: "111111111" // Optional: if message is in a thread
+  }
+});
+```
+
+**Exports:**
+- `deleteWebhookMessage` - Handler function
+- `deleteWebhookMessageSchema` - Valibot schema for validation
+- `deleteWebhookMessageSafe` - Validated handler
+- `deleteWebhookMessageProcedure` - tRPC procedure (mutation)
+
+---
+
+### Delete Webhook with Token
+
+Delete a webhook using its token (does not require authentication).
+
+**DELETE** `/webhooks/:webhook/:token`
+
+```typescript
+import { deleteWebhookWithToken } from "@discordkit/client";
+
+await deleteWebhookWithToken({
+  webhook: "123456789",
+  token: "webhook_token"
+});
+```
+
+**Exports:**
+- `deleteWebhookWithToken` - Handler function
+- `deleteWebhookWithTokenSchema` - Valibot schema for validation
+- `deleteWebhookWithTokenSafe` - Validated handler
+- `deleteWebhookWithTokenProcedure` - tRPC procedure (mutation)
+
+---
+
+### Edit Webhook Message
+
+Edit a previously-sent webhook message from the same token.
+
+**PATCH** `/webhooks/:webhook/:token/messages/:message`
+
+```typescript
+import { editWebhookMessage } from "@discordkit/client";
+
+const message = await editWebhookMessage({
+  webhook: "123456789",
+  token: "webhook_token",
+  message: "987654321",
+  params: {
+    threadId: "111111111", // Optional
+    withComponents: true // Optional
+  },
+  body: {
+    content: "Updated content",
+    embeds: [{
+      title: "Updated Embed",
+      description: "New description",
+      type: "rich"
+    }]
+  }
+});
+```
+
+**Note:** All parameters in the body are optional and nullable. The `attachments` array must contain all attachments that should be present after edit, including retained and new attachments.
+
+**Exports:**
+- `editWebhookMessage` - Handler function
+- `editWebhookMessageSchema` - Valibot schema for validation
+- `editWebhookMessageSafe` - Validated handler
+- `editWebhookMessageProcedure` - tRPC procedure (mutation)
+
+---
+
+### Execute GitHub-Compatible Webhook
+
+Execute a webhook configured for GitHub compatibility.
+
+**POST** `/webhooks/:webhook/:token/github`
+
+```typescript
+import { executeGitHubCompatibleWebhook } from "@discordkit/client";
+
+await executeGitHubCompatibleWebhook({
+  webhook: "123456789",
+  token: "webhook_token",
+  params: {
+    threadId: "111111111", // Optional
+    wait: true // Optional: defaults to true
+  }
+});
+```
+
+**Supported Events:** `commit_comment`, `create`, `delete`, `fork`, `issue_comment`, `issues`, `member`, `public`, `pull_request`, `pull_request_review`, `pull_request_review_comment`, `push`, `release`, `watch`, `check_run`, `check_suite`, `discussion`, `discussion_comment`.
+
+**Exports:**
+- `executeGitHubCompatibleWebhook` - Handler function
+- `executeGitHubCompatibleWebhookSchema` - Valibot schema for validation
+- `executeGitHubCompatibleWebhookSafe` - Validated handler
+- `executeGitHubCompatibleWebhookProcedure` - tRPC procedure (mutation)
+
+---
+
+### Execute Slack-Compatible Webhook
+
+Execute a webhook configured for Slack compatibility.
+
+**POST** `/webhooks/:webhook/:token/slack`
+
+```typescript
+import { executeSlackCompatibleWebhook } from "@discordkit/client";
+
+await executeSlackCompatibleWebhook({
+  webhook: "123456789",
+  token: "webhook_token",
+  params: {
+    threadId: "111111111", // Optional
+    wait: true // Optional: defaults to true
+  }
+});
+```
+
+**Note:** Discord does not support Slack's `channel`, `icon_emoji`, `mrkdwn`, or `mrkdwn_in` properties.
+
+**Exports:**
+- `executeSlackCompatibleWebhook` - Handler function
+- `executeSlackCompatibleWebhookSchema` - Valibot schema for validation
+- `executeSlackCompatibleWebhookSafe` - Validated handler
+- `executeSlackCompatibleWebhookProcedure` - tRPC procedure (mutation)
+
+---
+
+### Execute Webhook
+
+Execute a webhook to send a message.
+
+**POST** `/webhooks/:webhook/:token`
+
+```typescript
+import { executeWebhook } from "@discordkit/client";
+
+await executeWebhook({
+  webhook: "123456789",
+  token: "webhook_token",
+  params: {
+    wait: false, // Optional: defaults to false
+    threadId: "111111111", // Optional
+    withComponents: true // Optional: defaults to false
+  },
+  body: {
+    content: "Hello, World!",
+    username: "Custom Username",
+    avatarUrl: "https://example.com/avatar.png",
+    tts: false,
+    embeds: [{
+      title: "Example Embed",
+      description: "This is an embed",
+      type: "rich"
+    }],
+    components: [],
+    threadName: "New Thread", // For forum channels
+    appliedTags: ["tag_id"], // For forum/media channels
+    poll: {
+      question: { text: "What's your favorite color?" },
+      answers: [
+        { answer_id: 1, poll_media: { text: "Red" } },
+        { answer_id: 2, poll_media: { text: "Blue" } }
+      ],
+      duration: 24
+    }
+  }
+});
+```
+
+**Note:** You must provide at least one of `content`, `embeds`, `components`, or `file`.
+
+**Exports:**
+- `executeWebhook` - Handler function
+- `executeWebhookSchema` - Valibot schema for validation
+- `executeWebhookSafe` - Validated handler
+- `executeWebhookProcedure` - tRPC procedure (mutation)
+
+---
+
+### Get Channel Webhooks
+
+Get all webhooks for a channel.
+
+**GET** `/channels/:channel/webhooks`
+
+```typescript
+import { getChannelWebhooks } from "@discordkit/client";
+
+const webhooks = await getChannelWebhooks({ channel: "123456789" });
+```
+
+**Permissions:** Requires `MANAGE_WEBHOOKS` permission.
+
+**Exports:**
+- `getChannelWebhooks` - Handler function
+- `getChannelWebhooksSchema` - Valibot schema for validation
+- `getChannelWebhooksSafe` - Validated handler
+- `getChannelWebhooksProcedure` - tRPC procedure (query)
+- `getChannelWebhooksQuery` - Query helper
+
+---
+
+### Get Guild Webhooks
+
+Get all webhooks for a guild.
+
+**GET** `/guilds/:guild/webhooks`
+
+```typescript
+import { getGuildWebhooks } from "@discordkit/client";
+
+const webhooks = await getGuildWebhooks({ guild: "123456789" });
+```
+
+**Permissions:** Requires `MANAGE_WEBHOOKS` permission.
+
+**Exports:**
+- `getGuildWebhooks` - Handler function
+- `getGuildWebhooksSchema` - Valibot schema for validation
+- `getGuildWebhooksSafe` - Validated handler
+- `getGuildWebhooksProcedure` - tRPC procedure (query)
+- `getGuildWebhooksQuery` - Query helper
+
+---
+
+### Get Webhook
+
+Get a webhook by ID.
+
+**GET** `/webhooks/:webhook`
+
+```typescript
+import { getWebhook } from "@discordkit/client";
+
+const webhook = await getWebhook({ webhook: "123456789" });
+```
+
+**Permissions:** Requires `MANAGE_WEBHOOKS` permission unless the application owns the webhook.
+
+**Exports:**
+- `getWebhook` - Handler function
+- `getWebhookSchema` - Valibot schema for validation
+- `getWebhookSafe` - Validated handler
+- `getWebhookProcedure` - tRPC procedure (query)
+- `getWebhookQuery` - Query helper
+
+---
+
+### Get Webhook Message
+
+Get a previously-sent webhook message.
+
+**GET** `/webhooks/:webhook/:token/messages/:message`
+
+```typescript
+import { getWebhookMessage } from "@discordkit/client";
+
+const message = await getWebhookMessage({
+  webhook: "123456789",
+  token: "webhook_token",
+  message: "987654321",
+  params: {
+    threadId: "111111111" // Optional
+  }
+});
+```
+
+**Exports:**
+- `getWebhookMessage` - Handler function
+- `getWebhookMessageSchema` - Valibot schema for validation
+- `getWebhookMessageSafe` - Validated handler
+- `getWebhookMessageProcedure` - tRPC procedure (query)
+- `getWebhookMessageQuery` - Query helper
+
+---
+
+### Get Webhook with Token
+
+Get a webhook by ID and token (does not require authentication).
+
+**GET** `/webhooks/:webhook/:token`
+
+```typescript
+import { getWebhookWithToken } from "@discordkit/client";
+
+const webhook = await getWebhookWithToken({
+  webhook: "123456789",
+  token: "webhook_token"
+});
+```
+
+**Note:** This endpoint does not require authentication and returns no user in the webhook object.
+
+**Exports:**
+- `getWebhookWithToken` - Handler function
+- `getWebhookWithTokenSchema` - Valibot schema for validation
+- `getWebhookWithTokenSafe` - Validated handler
+- `getWebhookWithTokenProcedure` - tRPC procedure (query)
+- `getWebhookWithTokenQuery` - Query helper
+
+---
+
+### Modify Webhook
+
+Modify a webhook.
+
+**PATCH** `/webhooks/:webhook`
+
+```typescript
+import { modifyWebhook } from "@discordkit/client";
+
+const webhook = await modifyWebhook({
+  webhook: "123456789",
+  body: {
+    name: "Updated Name",
+    avatar: "https://example.com/new-avatar.png",
+    channelId: "987654321"
+  }
+});
+```
+
+**Permissions:** Requires `MANAGE_WEBHOOKS` permission.
+
+**Supports Audit Log Reason:** Yes
+
+**Note:** All parameters are optional.
+
+**Exports:**
+- `modifyWebhook` - Handler function
+- `modifyWebhookSchema` - Valibot schema for validation
+- `modifyWebhookSafe` - Validated handler
+- `modifyWebhookProcedure` - tRPC procedure (mutation)
+
+---
+
+### Modify Webhook with Token
+
+Modify a webhook using its token (does not require authentication).
+
+**PATCH** `/webhooks/:webhook/:token`
+
+```typescript
+import { modifyWebhookWithToken } from "@discordkit/client";
+
+const webhook = await modifyWebhookWithToken({
+  webhook: "123456789",
+  token: "webhook_token",
+  body: {
+    name: "Updated Name",
+    avatar: "https://example.com/new-avatar.png"
+  }
+});
+```
+
+**Supports Audit Log Reason:** Yes
+
+**Note:** All parameters are optional. This endpoint does not return a user in the webhook object.
+
+**Exports:**
+- `modifyWebhookWithToken` - Handler function
+- `modifyWebhookWithTokenSchema` - Valibot schema for validation
+- `modifyWebhookWithTokenSafe` - Validated handler
+- `modifyWebhookWithTokenProcedure` - tRPC procedure (mutation)
+
+## Procedure Exports
+
+All webhook procedures are also exported as a namespace:
+
+```typescript
+import { webhookProcedures } from "@discordkit/client";
+
+// Access any procedure:
+webhookProcedures.createWebhookProcedure
+webhookProcedures.deleteWebhookProcedure
+// ... etc
+```

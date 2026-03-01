@@ -1,0 +1,393 @@
+---
+title: Helper Functions
+description: Utility functions for common operations
+---
+
+DiscordKit provides a collection of helper functions for common operations like type checking, string manipulation, and data transformation.
+
+## Type Guards
+
+### isNonNullable
+
+Tests whether a value is not `null` or `undefined`, narrowing the type to `NonNullable<T>`.
+
+```typescript
+import { isNonNullable } from '@discordkit/core/utils';
+```
+
+**Type Signature**
+
+```typescript
+const isNonNullable: <T extends Maybe<unknown>>(
+  val?: T
+) => val is NonNullable<T>
+```
+
+<ParamField path="val" type="T | null | undefined">
+  The value to test
+</ParamField>
+
+**Returns**
+
+`true` if the value is not `null` or `undefined`, otherwise `false`. When `true`, TypeScript narrows the type to exclude `null` and `undefined`.
+
+**Example**
+
+```typescript
+import { isNonNullable, type Maybe } from '@discordkit/core/utils';
+
+const processUser = (user: Maybe<{ name: string }>) => {
+  if (!isNonNullable(user)) {
+    // user is null | undefined
+    return 'No user';
+  }
+  // user is { name: string }
+  return user.name.toUpperCase();
+};
+```
+
+### isNumericString
+
+Checks if a value is a string containing only digits.
+
+```typescript
+import { isNumericString } from '@discordkit/core/utils';
+```
+
+**Type Signature**
+
+```typescript
+const isNumericString: (val: unknown) => val is string
+```
+
+<ParamField path="val" type="unknown" required>
+  The value to test
+</ParamField>
+
+**Returns**
+
+`true` if the value is a string containing only digits (0-9), otherwise `false`.
+
+**Example**
+
+```typescript
+import { isNumericString } from '@discordkit/core/utils';
+
+isNumericString('12345'); // true
+isNumericString('123.45'); // false
+isNumericString('abc123'); // false
+isNumericString(12345); // false
+```
+
+### isObject
+
+Checks if a value is a plain object (not an array or null).
+
+```typescript
+import { isObject } from '@discordkit/core/utils';
+```
+
+**Type Signature**
+
+```typescript
+const isObject: (val: unknown) => val is object
+```
+
+<ParamField path="val" type="unknown" required>
+  The value to test
+</ParamField>
+
+**Returns**
+
+`true` if the value is a plain object, otherwise `false`.
+
+**Example**
+
+```typescript
+import { isObject } from '@discordkit/core/utils';
+
+isObject({}); // true
+isObject({ key: 'value' }); // true
+isObject([]); // false
+isObject(null); // false
+isObject('string'); // false
+```
+
+### isBetween
+
+Checks if a number is within a given range (inclusive).
+
+```typescript
+import { isBetween } from '@discordkit/core/utils';
+```
+
+**Type Signature**
+
+```typescript
+const isBetween: (val: number, min: number, max: number) => boolean
+```
+
+<ParamField path="val" type="number" required>
+  The value to test
+</ParamField>
+
+<ParamField path="min" type="number" required>
+  The minimum value (inclusive)
+</ParamField>
+
+<ParamField path="max" type="number" required>
+  The maximum value (inclusive)
+</ParamField>
+
+**Returns**
+
+`true` if `val >= min && val <= max`, otherwise `false`.
+
+**Example**
+
+```typescript
+import { isBetween } from '@discordkit/core/utils';
+
+isBetween(5, 1, 10); // true
+isBetween(10, 1, 10); // true
+isBetween(11, 1, 10); // false
+isBetween(0, 1, 10); // false
+```
+
+## String Manipulation
+
+### toCamelCase
+
+Converts a snake_case string to camelCase.
+
+```typescript
+import { toCamelCase } from '@discordkit/core/utils';
+```
+
+**Type Signature**
+
+```typescript
+const toCamelCase: (str: string) => string
+```
+
+<ParamField path="str" type="string" required>
+  The snake_case string to convert
+</ParamField>
+
+**Returns**
+
+The string converted to camelCase.
+
+**Example**
+
+```typescript
+import { toCamelCase } from '@discordkit/core/utils';
+
+toCamelCase('user_name'); // 'userName'
+toCamelCase('created_at_timestamp'); // 'createdAtTimestamp'
+toCamelCase('id'); // 'id'
+```
+
+### toSnakeCase
+
+Converts a camelCase string to snake_case.
+
+```typescript
+import { toSnakeCase } from '@discordkit/core/utils';
+```
+
+**Type Signature**
+
+```typescript
+const toSnakeCase: (str: string) => string
+```
+
+<ParamField path="str" type="string" required>
+  The camelCase string to convert
+</ParamField>
+
+**Returns**
+
+The string converted to snake_case.
+
+**Example**
+
+```typescript
+import { toSnakeCase } from '@discordkit/core/utils';
+
+toSnakeCase('userName'); // 'user_name'
+toSnakeCase('createdAtTimestamp'); // 'created_at_timestamp'
+toSnakeCase('id'); // 'id'
+```
+
+## Object Transformation
+
+### toCamelKeys
+
+Recursively converts all keys in an object from snake_case to camelCase.
+
+```typescript
+import { toCamelKeys } from '@discordkit/core/utils';
+```
+
+**Type Signature**
+
+```typescript
+const toCamelKeys: <T extends object>(
+  o: T
+) => CamelCasedPropertiesDeep<T>
+```
+
+<ParamField path="o" type="object" required>
+  The object to transform
+</ParamField>
+
+**Returns**
+
+A new object with all keys converted to camelCase. Arrays are recursively processed, and nested objects are transformed as well.
+
+**Example**
+
+```typescript
+import { toCamelKeys } from '@discordkit/core/utils';
+
+const apiResponse = {
+  user_id: '123',
+  user_name: 'discord_user',
+  created_at: '2024-01-01',
+  user_settings: {
+    notification_enabled: true,
+    theme_color: 'blue'
+  }
+};
+
+const transformed = toCamelKeys(apiResponse);
+// {
+//   userId: '123',
+//   userName: 'discord_user',
+//   createdAt: '2024-01-01',
+//   userSettings: {
+//     notificationEnabled: true,
+//     themeColor: 'blue'
+//   }
+// }
+```
+
+### toSnakeKeys
+
+Recursively converts all keys in an object from camelCase to snake_case.
+
+```typescript
+import { toSnakeKeys } from '@discordkit/core/utils';
+```
+
+**Type Signature**
+
+```typescript
+const toSnakeKeys: <T extends object>(
+  o: T
+) => SnakeCasedPropertiesDeep<T>
+```
+
+<ParamField path="o" type="object" required>
+  The object to transform
+</ParamField>
+
+**Returns**
+
+A new object with all keys converted to snake_case. Arrays are recursively processed, and nested objects are transformed as well.
+
+**Example**
+
+```typescript
+import { toSnakeKeys } from '@discordkit/core/utils';
+
+const clientData = {
+  userId: '123',
+  userName: 'discord_user',
+  createdAt: '2024-01-01',
+  userSettings: {
+    notificationEnabled: true,
+    themeColor: 'blue'
+  }
+};
+
+const transformed = toSnakeKeys(clientData);
+// {
+//   user_id: '123',
+//   user_name: 'discord_user',
+//   created_at: '2024-01-01',
+//   user_settings: {
+//     notification_enabled: true,
+//     theme_color: 'blue'
+//   }
+// }
+```
+
+## Async Utilities
+
+### sleep
+
+Sleeps for a specified number of milliseconds.
+
+```typescript
+import { sleep } from '@discordkit/core/utils';
+```
+
+**Type Signature**
+
+```typescript
+const sleep: (ms: number) => Promise<void>
+```
+
+<ParamField path="ms" type="number" required>
+  The number of milliseconds to sleep. Negative values are clamped to 0.
+</ParamField>
+
+**Returns**
+
+A Promise that resolves after the specified delay.
+
+**Example**
+
+```typescript
+import { sleep } from '@discordkit/core/utils';
+
+async function retryOperation() {
+  console.log('Attempting operation...');
+  
+  try {
+    await riskyOperation();
+  } catch (error) {
+    console.log('Failed, retrying in 3 seconds...');
+    await sleep(3000);
+    await riskyOperation();
+  }
+}
+```
+
+## Type Definitions
+
+### Maybe
+
+A utility type representing a value that may be `null` or `undefined`.
+
+```typescript
+type Maybe<T> = T | null | undefined;
+```
+
+**Example**
+
+```typescript
+import type { Maybe } from '@discordkit/core/utils';
+
+interface User {
+  id: string;
+  nickname: Maybe<string>;
+}
+
+const user: User = {
+  id: '123',
+  nickname: null // Valid
+};
+```

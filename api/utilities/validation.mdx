@@ -1,0 +1,528 @@
+---
+title: Validation
+description: Validation utilities and schemas for Discord data types
+---
+
+DiscordKit provides a comprehensive set of validation utilities built on top of [Valibot](https://valibot.dev/) for validating Discord API data structures.
+
+## Schemas
+
+### snowflake
+
+Validates Discord snowflake IDs - unique 64-bit unsigned integers used as identifiers throughout the Discord API.
+
+```typescript
+import { snowflake } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const snowflake: GenericSchema<string>
+```
+
+**Details**
+
+Validates whether a `number`, `bigint`, or numeric `string` is a valid [Snowflake](https://discord.com/developers/docs/reference#snowflakes) by checking if its derived timestamp is at or after the Discord epoch (January 1, 2015).
+
+**Example**
+
+```typescript
+import * as v from 'valibot';
+import { snowflake } from '@discordkit/core/validations';
+
+const UserSchema = v.object({
+  id: snowflake,
+  username: v.string()
+});
+
+v.parse(UserSchema, {
+  id: '123456789012345678',
+  username: 'discord_user'
+});
+```
+
+### snowflakeToDate
+
+Converts a snowflake string to a JavaScript Date object.
+
+```typescript
+import { snowflakeToDate } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const snowflakeToDate: (
+  val: string | number | bigint,
+  epoch?: bigint
+) => Date
+```
+
+<ParamField path="val" type="string | number | bigint" required>
+  The snowflake value to convert
+</ParamField>
+
+<ParamField path="epoch" type="bigint" default="1420070400000n">
+  Time in milliseconds to use as the epoch. Defaults to Discord's epoch (January 1, 2015)
+</ParamField>
+
+**Example**
+
+```typescript
+import { snowflakeToDate } from '@discordkit/core/validations';
+
+const date = snowflakeToDate('123456789012345678');
+console.log(date.toISOString()); // Converted date
+```
+
+### bitfield
+
+Creates a schema that validates [bitfield](https://en.wikipedia.org/wiki/Bit_field) numeric values - data structures for efficiently serializing groups of boolean flags.
+
+```typescript
+import { bitfield } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const bitfield: <TName extends string>(
+  name: TName,
+  flags: Flags,
+  message?: string
+) => SchemaWithPipe<...>
+```
+
+<ParamField path="name" type="string" required>
+  A name to differentiate this custom schema
+</ParamField>
+
+<ParamField path="flags" type="Flags" required>
+  An enum of bitwise flags. The `Flags` type is `{ [key: string]: number | bigint | string }`
+</ParamField>
+
+<ParamField path="message" type="string" default="Invalid Bitfield">
+  Error message to display when validation fails
+</ParamField>
+
+**Example**
+
+```typescript
+import { bitfield } from '@discordkit/core/validations';
+
+enum UserFlags {
+  Staff = 1 << 0,
+  Partner = 1 << 1,
+  BugHunter = 1 << 2,
+  Premium = 1 << 3
+}
+
+const userFlagsSchema = bitfield('UserFlags', UserFlags);
+
+// Validates bitfield values
+v.parse(userFlagsSchema, 5); // Staff + BugHunter
+```
+
+### asDigits
+
+Transforms a bitfield schema into a numeric string.
+
+```typescript
+import { asDigits } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const asDigits: (
+  schema: ReturnType<typeof bitfield>
+) => GenericSchema<string>
+```
+
+<ParamField path="schema" type="ReturnType<typeof bitfield>" required>
+  A bitfield schema to transform
+</ParamField>
+
+**Example**
+
+```typescript
+import { bitfield, asDigits } from '@discordkit/core/validations';
+
+const flags = bitfield('Flags', MyFlags);
+const flagsAsString = asDigits(flags);
+```
+
+### asInteger
+
+Transforms a bitfield schema into an integer.
+
+```typescript
+import { asInteger } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const asInteger: (
+  schema: ReturnType<typeof bitfield>
+) => GenericSchema<number>
+```
+
+<ParamField path="schema" type="ReturnType<typeof bitfield>" required>
+  A bitfield schema to transform
+</ParamField>
+
+**Example**
+
+```typescript
+import { bitfield, asInteger } from '@discordkit/core/validations';
+
+const flags = bitfield('Flags', MyFlags);
+const flagsAsNumber = asInteger(flags);
+```
+
+### boundedString
+
+Validates a non-empty string with length constraints.
+
+```typescript
+import { boundedString } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const boundedString: (
+  req?: number | { min?: number; max?: number }
+) => GenericSchema<string>
+```
+
+<ParamField path="req" type="number | { min?: number; max?: number }">
+  Exact length (if number) or min/max bounds (if object)
+</ParamField>
+
+**Example**
+
+```typescript
+import { boundedString } from '@discordkit/core/validations';
+
+// Exact length
+const exactString = boundedString(10);
+
+// Min/max bounds
+const usernameSchema = boundedString({ min: 2, max: 32 });
+
+// Min only (defaults to 1)
+const descriptionSchema = boundedString({ max: 100 });
+```
+
+### boundedArray
+
+Validates a non-empty array with length constraints.
+
+```typescript
+import { boundedArray } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const boundedArray: <TItem>(
+  items: GenericSchema<TItem>,
+  req?: number | { min?: number; max?: number }
+) => GenericSchema<TItem[]>
+```
+
+<ParamField path="items" type="GenericSchema<TItem>" required>
+  Schema for validating array items
+</ParamField>
+
+<ParamField path="req" type="number | { min?: number; max?: number }">
+  Exact length (if number) or min/max bounds (if object)
+</ParamField>
+
+**Example**
+
+```typescript
+import * as v from 'valibot';
+import { boundedArray } from '@discordkit/core/validations';
+
+// Exact length
+const threeStrings = boundedArray(v.string(), 3);
+
+// Min/max bounds
+const roles = boundedArray(v.string(), { min: 1, max: 10 });
+```
+
+### boundedInteger
+
+Validates an integer with value constraints.
+
+```typescript
+import { boundedInteger } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const boundedInteger: (
+  req?: number | { min?: number; max?: number }
+) => GenericSchema<number>
+```
+
+<ParamField path="req" type="number | { min?: number; max?: number }">
+  Exact value (if number) or min/max bounds (if object)
+</ParamField>
+
+**Example**
+
+```typescript
+import { boundedInteger } from '@discordkit/core/validations';
+
+// Exact value
+const constantValue = boundedInteger(42);
+
+// Range
+const percentageSchema = boundedInteger({ min: 0, max: 100 });
+```
+
+### datauri
+
+Validates that a string is a [data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme).
+
+```typescript
+import { datauri } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const datauri: GenericSchema<string>
+```
+
+**Example**
+
+```typescript
+import { datauri } from '@discordkit/core/validations';
+
+const imageSchema = v.object({
+  data: datauri
+});
+
+v.parse(imageSchema, {
+  data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...'
+});
+```
+
+### extractDataURIMetadata
+
+Extracts metadata from a data URI string.
+
+```typescript
+import { extractDataURIMetadata } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const extractDataURIMetadata: (
+  val: string
+) => Partial<{
+  mediaType: string;
+  mimeType: `${string}/${string}`;
+  params: string;
+  encoding: string;
+  data: string;
+}>
+```
+
+<ParamField path="val" type="string" required>
+  The data URI string to parse
+</ParamField>
+
+**Returns**
+
+An object containing extracted metadata, or an empty object if the data URI is invalid.
+
+**Example**
+
+```typescript
+import { extractDataURIMetadata } from '@discordkit/core/validations';
+
+const metadata = extractDataURIMetadata(
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...'
+);
+
+console.log(metadata.mimeType); // 'image/png'
+console.log(metadata.encoding); // ';base64'
+```
+
+### hasMimeType
+
+Validation action to check if a data URI has one of the provided MIME types.
+
+```typescript
+import { hasMimeType } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const hasMimeType: (
+  requirement: Array<`${string}/${string}`>,
+  message?: string
+) => CheckAction<string, typeof message>
+```
+
+<ParamField path="requirement" type="Array<string>" required>
+  Array of allowed MIME types (e.g., `['image/png', 'image/jpeg']`)
+</ParamField>
+
+<ParamField path="message" type="string" default="Received badly formatted Data URI">
+  Error message on failed validation
+</ParamField>
+
+**Example**
+
+```typescript
+import * as v from 'valibot';
+import { datauri, hasMimeType } from '@discordkit/core/validations';
+
+const imageSchema = v.pipe(
+  datauri,
+  hasMimeType(['image/png', 'image/jpeg', 'image/gif'])
+);
+```
+
+### hasSize
+
+Validation action to check if a data URI's decoded data is within size constraints.
+
+```typescript
+import { hasSize } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const hasSize: (
+  size: number | { min?: number; max?: number },
+  message?: string
+) => CheckAction<string, typeof message>
+```
+
+<ParamField path="size" type="number | { min?: number; max?: number }" required>
+  Exact size in bytes (if number) or min/max bounds (if object)
+</ParamField>
+
+<ParamField path="message" type="string" default="Data URI is the incorrect size">
+  Error message on failed validation
+</ParamField>
+
+**Example**
+
+```typescript
+import * as v from 'valibot';
+import { datauri, hasSize } from '@discordkit/core/validations';
+
+const avatarSchema = v.pipe(
+  datauri,
+  hasSize({ max: 1024 * 1024 }) // Max 1MB
+);
+```
+
+### toBlob
+
+Transforms a data URI string to a Blob object.
+
+```typescript
+import { toBlob } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const toBlob: TransformAction<string, Blob>
+```
+
+**Example**
+
+```typescript
+import * as v from 'valibot';
+import { datauri, toBlob } from '@discordkit/core/validations';
+
+const imageSchema = v.pipe(datauri, toBlob);
+
+const blob = v.parse(imageSchema, 'data:image/png;base64,iVBORw0KGg...');
+```
+
+### timestamp
+
+Validates an [ISO8601](https://www.loc.gov/standards/datetime/) timestamp string.
+
+```typescript
+import { timestamp } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const timestamp: GenericSchema<string>
+```
+
+**Example**
+
+```typescript
+import { timestamp } from '@discordkit/core/validations';
+
+const eventSchema = v.object({
+  name: v.string(),
+  createdAt: timestamp
+});
+
+v.parse(eventSchema, {
+  name: 'Guild Created',
+  createdAt: '2024-01-15T10:30:00.000Z'
+});
+```
+
+### url
+
+Validates a URL string.
+
+```typescript
+import { url } from '@discordkit/core/validations';
+```
+
+**Type Signature**
+
+```typescript
+const url: GenericSchema<string>
+```
+
+**Example**
+
+```typescript
+import { url } from '@discordkit/core/validations';
+
+const profileSchema = v.object({
+  website: url
+});
+
+v.parse(profileSchema, {
+  website: 'https://discord.com'
+});
+```
+
+## Constants
+
+### DISCORD_EPOCH
+
+The Discord epoch as a BigInt - represents the first second of 2015 (January 1, 2015, 00:00:00 UTC).
+
+```typescript
+import { DISCORD_EPOCH } from '@discordkit/core/validations';
+
+console.log(DISCORD_EPOCH); // 1420070400000n
+```

@@ -1,0 +1,605 @@
+---
+title: '@discordkit/core'
+description: Core utilities, validators, and request handlers for DiscordKit
+---
+
+The `@discordkit/core` package provides the foundational utilities, validation schemas, and request handling infrastructure used by `@discordkit/client`. You can also use these utilities directly in your applications.
+
+## Installation
+
+```bash
+npm install @discordkit/core valibot
+```
+
+<Note>
+  DiscordKit uses [Valibot](https://valibot.dev/) for schema validation and requires it as a peer dependency.
+</Note>
+
+## Request Functions
+
+### HTTP Methods
+
+Low-level HTTP request functions that interact with Discord's API:
+
+```typescript
+import { get, post, patch, put, remove } from '@discordkit/core';
+```
+
+<ParamField path="get" type="<T>(url: string, params?: RequestParams) => Promise<T>">
+  Make a GET request to the Discord API.
+</ParamField>
+
+<ParamField path="post" type="<T>(url: string, body?: RequestBody) => Promise<T>">
+  Make a POST request to the Discord API.
+</ParamField>
+
+<ParamField path="patch" type="<T>(url: string, body?: RequestBody) => Promise<T>">
+  Make a PATCH request to the Discord API.
+</ParamField>
+
+<ParamField path="put" type="<T>(url: string, body?: RequestBody) => Promise<T>">
+  Make a PUT request to the Discord API.
+</ParamField>
+
+<ParamField path="remove" type="<T = void>(url: string) => Promise<T>">
+  Make a DELETE request to the Discord API.
+</ParamField>
+
+**Example:**
+
+```typescript
+import { discord, get } from '@discordkit/core';
+
+discord.setToken('Bot YOUR_BOT_TOKEN');
+
+interface Guild {
+  id: string;
+  name: string;
+}
+
+const guild = await get<Guild>('/guilds/123456789');
+console.log(guild.name);
+```
+
+### Fetcher Type
+
+Generic type for creating type-safe API fetchers:
+
+```typescript
+import type { Fetcher } from '@discordkit/core';
+
+type Fetcher<
+  S extends GenericSchema | GenericSchemaAsync | null = null,
+  R = void
+> = S extends null
+  ? () => Promise<R>
+  : (config: InferOutput<NonNullable<S>>) => Promise<R>;
+```
+
+**Example:**
+
+```typescript
+import { get, snowflake, type Fetcher } from '@discordkit/core';
+import * as v from 'valibot';
+
+const getUserSchema = v.object({
+  user: snowflake
+});
+
+interface User {
+  id: string;
+  username: string;
+}
+
+const getUser: Fetcher<typeof getUserSchema, User> = async ({ user }) =>
+  get(`/users/${user}`);
+```
+
+## Session Management
+
+### discord
+
+The global Discord API session instance:
+
+```typescript
+import { discord } from '@discordkit/core';
+```
+
+<ParamField path="discord" type="DiscordSession">
+  Singleton instance that manages authentication, rate limiting, and request queueing.
+</ParamField>
+
+**Methods:**
+
+<ResponseField name="setToken" type="(token: string) => DiscordSession">
+  Set the authentication token. Must start with `Bot ` or `Bearer `.
+  
+  ```typescript
+  discord.setToken('Bot YOUR_BOT_TOKEN');
+  discord.setToken('Bearer YOUR_OAUTH_TOKEN');
+  ```
+</ResponseField>
+
+<ResponseField name="clearSession" type="() => DiscordSession">
+  Clear the authentication token and reset all rate limit tracking.
+  
+  ```typescript
+  discord.clearSession();
+  ```
+</ResponseField>
+
+<ResponseField name="getSession" type="() => string">
+  Get the current authentication token. Throws an error if not set.
+  
+  ```typescript
+  const token = discord.getSession();
+  ```
+</ResponseField>
+
+<ResponseField name="queueRequest" type="(resource: URL, method: string, body?: string | null) => Promise<Response>">
+  Queue an HTTP request with automatic rate limiting.
+  
+  ```typescript
+  const response = await discord.queueRequest(
+    new URL('https://discord.com/api/v10/users/@me'),
+    'GET'
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="getQueueSize" type="() => number">
+  Get the current number of queued requests.
+  
+  ```typescript
+  const queueSize = discord.getQueueSize();
+  console.log(`Pending requests: ${queueSize}`);
+  ```
+</ResponseField>
+
+**Properties:**
+
+<ResponseField name="ready" type="boolean" default={false}>
+  Returns `true` if an authentication token has been set.
+</ResponseField>
+
+<ResponseField name="endpoint" type="string" default="https://discord.com/api/v10/">
+  Base URL for Discord API requests. Can be modified if needed.
+</ResponseField>
+
+<ResponseField name="maxRetries" type="number" default={5}>
+  Maximum number of retry attempts for rate-limited requests (429 responses).
+</ResponseField>
+
+**Rate Limiting:**
+
+The `DiscordSession` automatically handles:
+- Global rate limit (50 requests per second)
+- Per-route rate limits (tracked via response headers)
+- Automatic request queuing and retry with backoff
+- Invalid request tracking (to avoid Cloudflare bans)
+
+### endpoint
+
+The default Discord API endpoint URL:
+
+```typescript
+import { endpoint } from '@discordkit/core';
+
+console.log(endpoint); // "https://discord.com/api/v10/"
+```
+
+## Transformation Functions
+
+### toProcedure
+
+Convert a fetcher function into a tRPC procedure factory:
+
+```typescript
+import { toProcedure } from '@discordkit/core';
+import type { ProcedureType } from '@trpc/server';
+
+const toProcedure = <
+  T extends ProcedureType,
+  I extends GenericSchema | null = null,
+  O extends GenericSchema | null = null
+>(
+  type: T,
+  fn: Fetcher<I, Result<O>>,
+  input?: I,
+  output?: O
+) => (
+  procedure: AnyProcedureBuilder,
+  errorHandler?: (error: unknown) => void
+) => BaseProcedure<T, I, O>
+```
+
+**Example:**
+
+```typescript
+import { toProcedure, get, snowflake } from '@discordkit/core';
+import * as v from 'valibot';
+import { initTRPC } from '@trpc/server';
+
+const getUserSchema = v.object({ user: snowflake });
+const userSchema = v.object({
+  id: v.string(),
+  username: v.string()
+});
+
+const getUser = async ({ user }: { user: string }) =>
+  get(`/users/${user}`);
+
+const getUserProcedure = toProcedure(
+  'query',
+  getUser,
+  getUserSchema,
+  userSchema
+);
+
+const t = initTRPC.create();
+const router = t.router({
+  getUser: getUserProcedure(t.procedure)
+});
+```
+
+### toQuery
+
+Convert a fetcher function into a React Query / TanStack Query function:
+
+```typescript
+import { toQuery } from '@discordkit/core';
+
+const toQuery = <S extends GenericSchema | null, R, T extends Fetcher<S, R>>(
+  fn: T
+): Parameters<T>['length'] extends 0
+  ? () => QueryFunction<Awaited<ReturnType<T>>>
+  : (config: Parameters<T>[0]) => QueryFunction<Awaited<ReturnType<T>>>
+```
+
+**Example:**
+
+```typescript
+import { toQuery, get } from '@discordkit/core';
+import { useQuery } from '@tanstack/react-query';
+
+const getUser = async ({ user }: { user: string }) =>
+  get(`/users/${user}`);
+
+const getUserQuery = toQuery(getUser);
+
+function UserProfile({ userId }: { userId: string }) {
+  const { data: user } = useQuery({
+    queryKey: ['user', userId],
+    queryFn: getUserQuery({ user: userId })
+  });
+
+  return <div>{user?.username}</div>;
+}
+```
+
+### toValidated
+
+Wrap a fetcher with runtime validation for inputs and outputs:
+
+```typescript
+import { toValidated } from '@discordkit/core';
+
+const toValidated = <F extends Fetcher>(
+  fn: F,
+  input?: GenericSchema | null,
+  output?: GenericSchema
+): F
+```
+
+**Example:**
+
+```typescript
+import { toValidated, get, snowflake } from '@discordkit/core';
+import * as v from 'valibot';
+
+const getUserSchema = v.object({ user: snowflake });
+const userSchema = v.object({
+  id: v.string(),
+  username: v.string()
+});
+
+const getUser = async ({ user }: { user: string }) =>
+  get(`/users/${user}`);
+
+const getUserSafe = toValidated(getUser, getUserSchema, userSchema);
+
+// Input and output are validated at runtime
+const user = await getUserSafe({ user: '123456789' });
+```
+
+## URL Utilities
+
+### buildURL
+
+Construct a full Discord API URL with query parameters:
+
+```typescript
+import { buildURL } from '@discordkit/core';
+
+const url = buildURL('/guilds/123', { with_counts: true });
+console.log(url.toString());
+// "https://discord.com/api/v10/guilds/123?with_counts=true"
+```
+
+### getAsset
+
+Get the CDN URL for Discord assets (avatars, icons, etc.):
+
+```typescript
+import { getAsset } from '@discordkit/core';
+
+// User avatar
+const avatarUrl = getAsset('avatars', userId, avatarHash, { size: 256 });
+
+// Guild icon
+const iconUrl = getAsset('icons', guildId, iconHash, { size: 512 });
+```
+
+## Validation Schemas
+
+Valibot schemas for common Discord data types:
+
+### snowflake
+
+Validates Discord snowflake IDs:
+
+```typescript
+import { snowflake } from '@discordkit/core';
+import * as v from 'valibot';
+
+const schema = v.object({
+  guildId: snowflake,
+  channelId: snowflake
+});
+
+const result = v.parse(schema, {
+  guildId: '123456789',
+  channelId: '987654321'
+});
+```
+
+**Utilities:**
+
+```typescript
+import { snowflakeToDate, DISCORD_EPOCH } from '@discordkit/core';
+
+// Convert snowflake to timestamp
+const date = snowflakeToDate('123456789');
+console.log(date);
+
+// Discord epoch (first second of 2015)
+console.log(DISCORD_EPOCH); // 1420070400000n
+```
+
+### bitfield
+
+Create validators for Discord bitfield flags:
+
+```typescript
+import { bitfield } from '@discordkit/core';
+import * as v from 'valibot';
+
+enum Permissions {
+  CREATE_INSTANT_INVITE = 1 << 0,
+  KICK_MEMBERS = 1 << 1,
+  BAN_MEMBERS = 1 << 2,
+  ADMINISTRATOR = 1 << 3,
+}
+
+const permissionsSchema = bitfield('Permissions', Permissions);
+
+const schema = v.object({
+  permissions: permissionsSchema
+});
+
+// Validates that the value is a valid combination of flags
+const result = v.parse(schema, {
+  permissions: Permissions.KICK_MEMBERS | Permissions.BAN_MEMBERS
+});
+```
+
+### String Validators
+
+```typescript
+import {
+  boundedString,
+  boundedInteger,
+  boundedArray,
+  asDigits,
+  asInteger
+} from '@discordkit/core';
+import * as v from 'valibot';
+
+// String with length constraints
+const nameSchema = boundedString({ min: 2, max: 100 });
+
+// Integer with value constraints
+const ageSchema = boundedInteger({ min: 0, max: 120 });
+
+// Array with length constraints
+const tagsSchema = boundedArray(v.string(), { min: 1, max: 10 });
+
+// Validate string contains only digits
+const digitsSchema = asDigits(v.string());
+
+// Coerce to integer
+const intSchema = asInteger(v.string());
+```
+
+### Data URI Validator
+
+```typescript
+import { datauri } from '@discordkit/core';
+import * as v from 'valibot';
+
+// Validates data URIs (for image uploads, etc.)
+const schema = v.object({
+  icon: datauri
+});
+
+const result = v.parse(schema, {
+  icon: 'data:image/png;base64,iVBORw0KG...'
+});
+```
+
+### Media Type Validators
+
+```typescript
+import { hasMimeType, toBlob } from '@discordkit/core';
+import * as v from 'valibot';
+
+// Validate MIME type
+const imageSchema = v.pipe(
+  v.string(),
+  hasMimeType(['image/png', 'image/jpeg'])
+);
+
+// Convert to Blob
+const blobSchema = toBlob(v.string());
+```
+
+### Timestamp Validator
+
+```typescript
+import { timestamp } from '@discordkit/core';
+import * as v from 'valibot';
+
+// Validates ISO 8601 timestamps
+const schema = v.object({
+  createdAt: timestamp
+});
+
+const result = v.parse(schema, {
+  createdAt: '2024-01-01T00:00:00.000Z'
+});
+```
+
+### URL Validator
+
+```typescript
+import { url } from '@discordkit/core';
+import * as v from 'valibot';
+
+// Validates URLs
+const schema = v.object({
+  website: url
+});
+
+const result = v.parse(schema, {
+  website: 'https://discord.com'
+});
+```
+
+## Webhook Verification
+
+### verifyKey
+
+Verify Discord interaction signatures:
+
+```typescript
+import { verifyKey } from '@discordkit/core';
+
+const isValid = await verifyKey(
+  request.body,
+  request.headers.get('X-Signature-Ed25519'),
+  request.headers.get('X-Signature-Timestamp'),
+  process.env.DISCORD_PUBLIC_KEY
+);
+
+if (!isValid) {
+  return new Response('Invalid signature', { status: 401 });
+}
+```
+
+## Type Utilities
+
+The core package also exports useful type utilities from `type-fest`:
+
+```typescript
+import type { Simplify, RequireAtLeastOne } from '@discordkit/core';
+
+// Simplify complex types
+type Simple = Simplify<ComplexType>;
+
+// Require at least one property
+type Options = RequireAtLeastOne<{
+  foo?: string;
+  bar?: string;
+}>;
+```
+
+## Usage Examples
+
+### Custom Endpoint Wrapper
+
+```typescript
+import { discord, get, snowflake, toValidated } from '@discordkit/core';
+import * as v from 'valibot';
+
+discord.setToken('Bot YOUR_BOT_TOKEN');
+
+const getCustomDataSchema = v.object({
+  id: snowflake
+});
+
+const customDataSchema = v.object({
+  id: v.string(),
+  value: v.number()
+});
+
+const getCustomData = async ({ id }: { id: string }) =>
+  get(`/custom-endpoint/${id}`);
+
+const getCustomDataSafe = toValidated(
+  getCustomData,
+  getCustomDataSchema,
+  customDataSchema
+);
+
+const data = await getCustomDataSafe({ id: '123456789' });
+```
+
+### Rate Limit Monitoring
+
+```typescript
+import { discord } from '@discordkit/core';
+
+setInterval(() => {
+  const queueSize = discord.getQueueSize();
+  console.log(`Queued requests: ${queueSize}`);
+}, 5000);
+```
+
+### Custom Validation
+
+```typescript
+import { bitfield } from '@discordkit/core';
+import * as v from 'valibot';
+
+enum CustomFlags {
+  FLAG_A = 1 << 0,
+  FLAG_B = 1 << 1,
+  FLAG_C = 1 << 2,
+}
+
+const customFlagValidator = bitfield('CustomFlags', CustomFlags);
+
+const schema = v.object({
+  flags: customFlagValidator
+});
+
+const result = v.parse(schema, {
+  flags: CustomFlags.FLAG_A | CustomFlags.FLAG_C
+});
+```
+
+## Related
+
+- [API Overview](/api/overview) - Understanding export patterns
+- [Client Package](/api/client) - Discord REST API client
+- [Valibot Documentation](https://valibot.dev/) - Schema validation library

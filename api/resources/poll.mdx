@@ -1,0 +1,168 @@
+---
+title: 'Polls'
+description: 'API endpoints for managing polls in Discord messages'
+---
+
+## Overview
+
+The Poll resource provides endpoints for interacting with polls in Discord messages, including retrieving voters for specific answers and ending polls early.
+
+## Endpoints
+
+### Get Answer Voters
+
+**GET** `/channels/:channel/polls/:message/answers/:answer`
+
+Get a list of users that voted for this specific answer.
+
+```typescript
+export const getAnswerVoters: Fetcher<
+  typeof getAnswerVotersSchema,
+  { users: User[] }
+> = async ({ channel, message, answer, params }) =>
+  get(`/channels/${channel}/polls/${message}/answers/${answer}`, params);
+```
+
+#### Parameters
+
+- `channel` - Channel ID (snowflake)
+- `message` - Message ID containing the poll (snowflake)
+- `answer` - Answer ID (integer, minimum: 0)
+- `params.after` - Get users after this user ID (optional, snowflake)
+- `params.limit` - Max number of users to return (optional, 1-100)
+
+#### Response
+
+Returns an object containing:
+- `users` - Array of User objects who voted for the answer
+
+### End Poll
+
+**POST** `/channels/:channel/polls/:message/expire`
+
+Immediately ends the poll. You cannot end polls from other users.
+
+```typescript
+export const endPoll: Fetcher<typeof endPollSchema> = async ({
+  channel,
+  message
+}) => post(`/channels/${channel}/polls/${message}/expire`);
+```
+
+#### Parameters
+
+- `channel` - Channel ID (snowflake)
+- `message` - Message ID containing the poll (snowflake)
+
+#### Notes
+
+- Returns a message object
+- Fires a Message Update Gateway event
+- You can only end polls that you created
+
+## Exports
+
+### Schema Exports
+
+- `getAnswerVotersSchema`
+- `endPollSchema`
+
+### Handler Exports
+
+- `getAnswerVoters`
+- `getAnswerVotersSafe`
+- `endPoll`
+- `endPollSafe`
+
+### Query Exports
+
+- `getAnswerVotersQuery`
+
+### Procedure Exports
+
+All procedures are exported via `pollProcedures`:
+
+- `getAnswerVotersProcedure`
+- `endPollProcedure`
+
+## Usage Example
+
+```typescript
+import {
+  getAnswerVoters,
+  endPoll
+} from '@discordkit/client';
+
+// Get voters for a specific poll answer
+const voters = await getAnswerVoters({
+  channel: '123456789',
+  message: '987654321',
+  answer: 0, // First answer
+  params: {
+    limit: 50
+  }
+});
+
+console.log(`Found ${voters.users.length} voters`);
+voters.users.forEach(user => {
+  console.log(`${user.username} voted for this answer`);
+});
+
+// Paginate through voters
+const nextPage = await getAnswerVoters({
+  channel: '123456789',
+  message: '987654321',
+  answer: 0,
+  params: {
+    after: voters.users[voters.users.length - 1].id,
+    limit: 50
+  }
+});
+
+// End a poll early
+await endPoll({
+  channel: '123456789',
+  message: '987654321'
+});
+```
+
+## Creating Polls
+
+To create a poll, use the message creation endpoints with poll data:
+
+```typescript
+import { createMessage } from '@discordkit/client';
+
+const message = await createMessage({
+  channel: '123456789',
+  body: {
+    content: 'What\'s your favorite color?',
+    poll: {
+      question: { text: 'Pick your favorite color' },
+      answers: [
+        { poll_media: { text: 'Red' } },
+        { poll_media: { text: 'Blue' } },
+        { poll_media: { text: 'Green' } }
+      ],
+      duration: 24, // Duration in hours
+      allow_multiselect: false
+    }
+  }
+});
+```
+
+## Poll Mechanics
+
+- Polls are attached to messages and can have multiple answer options
+- Users can vote on one or multiple answers (depending on `allow_multiselect`)
+- Polls automatically expire after their duration or can be ended early
+- Answer IDs are 0-indexed integers (first answer is 0, second is 1, etc.)
+- Only the poll creator can end their poll early
+
+## Best Practices
+
+- Use pagination when fetching voters for popular polls
+- Set appropriate poll durations based on your use case
+- Consider using `allow_multiselect: false` for simple yes/no or single-choice questions
+- Keep poll questions and answers concise and clear
+- Only end polls early when necessary, as users may still be voting

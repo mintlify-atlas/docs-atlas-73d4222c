@@ -1,0 +1,657 @@
+---
+title: 'Message Resource'
+description: 'API endpoints for managing Discord messages, reactions, and pins'
+---
+
+The Message resource provides endpoints to manage Discord messages, including creating, editing, deleting messages, managing reactions, and handling message pins.
+
+## Message Management
+
+### Get Channel Message
+
+Get a specific message from a channel.
+
+```typescript
+import { getChannelMessage } from '@discordkit/client';
+
+const message = await getChannelMessage({
+  channel: '123456789',
+  message: '987654321'
+});
+```
+
+**Endpoint:** `GET /channels/:channel/messages/:message`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+</Accordion>
+
+**Exports:**
+- `getChannelMessage` - Base fetcher function
+- `getChannelMessageSafe` - Validated version
+- `getChannelMessageProcedure` - tRPC-compatible query procedure
+- `getChannelMessageQuery` - TanStack Query function
+- `getChannelMessageSchema` - Valibot input schema
+
+**Returns:** `Message` object
+
+**Source:** [getChannelMessage.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/messages/getChannelMessage.ts)
+
+### Get Channel Messages
+
+Get messages from a channel. Returns up to 100 messages.
+
+```typescript
+import { getChannelMessages } from '@discordkit/client';
+
+const messages = await getChannelMessages({
+  channel: '123456789',
+  params: {
+    limit: 50,
+    before: '987654321'
+  }
+});
+```
+
+**Endpoint:** `GET /channels/:channel/messages`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+
+  **Query Parameters (all optional, mutually exclusive):**
+  - `around` (snowflake) - Get messages around this message ID
+  - `before` (snowflake) - Get messages before this message ID
+  - `after` (snowflake) - Get messages after this message ID
+  - `limit` (integer, 1-100) - Max messages to return (default: 50)
+</Accordion>
+
+**Exports:**
+- `getChannelMessages`
+- `getChannelMessagesSafe`
+- `getChannelMessagesProcedure`
+- `getChannelMessagesQuery`
+- `getChannelMessagesSchema`
+
+**Returns:** Array of `Message` objects
+
+<Note>
+  The `before`, `after`, and `around` parameters are mutually exclusive - only one may be passed at a time.
+</Note>
+
+**Permissions Required:**
+- `VIEW_CHANNEL` - Required for guild channels
+- `CONNECT` - Required if channel is a voice channel
+- `READ_MESSAGE_HISTORY` - Required to receive any messages
+
+### Create Message
+
+Post a message to a guild text or DM channel.
+
+```typescript
+import { createMessage } from '@discordkit/client';
+
+const message = await createMessage({
+  channel: '123456789',
+  body: {
+    content: 'Hello, world!',
+    embeds: [
+      {
+        title: 'My Embed',
+        description: 'This is an embed',
+        color: 0x00ff00
+      }
+    ],
+    components: [
+      {
+        type: 1, // Action Row
+        components: [
+          {
+            type: 2, // Button
+            style: 1, // Primary
+            label: 'Click me!',
+            customId: 'button_1'
+          }
+        ]
+      }
+    ]
+  }
+});
+```
+
+**Endpoint:** `POST /channels/:channel/messages`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+
+  **Body Parameters (all optional):**
+  - `content` (string, max 2000 chars) - Message content
+  - `tts` (boolean) - Text-to-speech message
+  - `embeds` (array, max 10) - Embedded rich content
+  - `allowedMentions` (object) - Allowed mentions configuration
+  - `messageReference` (object) - Include to make message a reply
+  - `components` (array) - Message components (buttons, select menus)
+  - `stickerIds` (array, max 3) - Sticker IDs to send
+  - `files` (array) - File attachments
+  - `payloadJson` (string) - JSON payload for multipart/form-data
+  - `attachments` (array) - Attachment objects with metadata
+  - `flags` (integer) - Message flags (only `SUPPRESS_EMBEDS` can be set)
+</Accordion>
+
+**Exports:**
+- `createMessage`
+- `createMessageSafe`
+- `createMessageProcedure`
+- `createMessageSchema`
+
+**Returns:** `Message` object
+
+<Warning>
+  Discord may strip certain characters from message content, like invalid unicode or characters which cause unexpected formatting. Consider sanitizing user-generated content and using `allowedMentions` to prevent unexpected mentions.
+</Warning>
+
+**Limitations:**
+- Requires `SEND_MESSAGES` permission in guild channels
+- Requires `SEND_TTS_MESSAGES` permission for TTS messages
+- Requires `READ_MESSAGE_HISTORY` permission for replies
+- Maximum request size: 25 MiB
+- Referenced message must exist and cannot be a system message
+
+### Edit Message
+
+Edit a previously sent message.
+
+```typescript
+import { editMessage } from '@discordkit/client';
+
+const updated = await editMessage({
+  channel: '123456789',
+  message: '987654321',
+  body: {
+    content: 'Updated message content',
+    embeds: []
+  }
+});
+```
+
+**Endpoint:** `PATCH /channels/:channel/messages/:message`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+
+  **Body Parameters (all optional):**
+  - `content` (string, max 2000 chars) - New message content
+  - `embeds` (array, max 10) - New embeds
+  - `flags` (integer) - Message flags (only `SUPPRESS_EMBEDS` can be modified)
+  - `allowedMentions` (object) - Allowed mentions configuration
+  - `components` (array) - Message components
+  - `files` (array) - New file attachments
+  - `attachments` (array) - Attachments to keep (includes new)
+</Accordion>
+
+**Exports:**
+- `editMessage`
+- `editMessageSafe`
+- `editMessageProcedure`
+- `editMessageSchema`
+
+**Returns:** `Message` object
+
+**Permissions:**
+- Original author can edit `content`, `embeds`, and `flags`
+- Users with `MANAGE_MESSAGES` can only edit `flags`
+
+<Warning>
+  Starting with API v10, the `attachments` array must contain all attachments to be present after edit, including retained and new attachments.
+</Warning>
+
+<Note>
+  When the `content` field is edited, the `mentions` array is reconstructed based on the new content. If no explicit `allowedMentions` is in the edit request, content is parsed with default allowances.
+</Note>
+
+### Delete Message
+
+Delete a message.
+
+```typescript
+import { deleteMessage } from '@discordkit/client';
+
+await deleteMessage({
+  channel: '123456789',
+  message: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/messages/:message`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+</Accordion>
+
+**Exports:**
+- `deleteMessage`
+- `deleteMessageProcedure`
+- `deleteMessageSchema`
+
+**Returns:** `204 No Content`
+
+<Note>
+  Requires `MANAGE_MESSAGES` permission to delete others' messages. This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+### Bulk Delete Messages
+
+Delete multiple messages in a single request.
+
+```typescript
+import { bulkDeleteMessages } from '@discordkit/client';
+
+await bulkDeleteMessages({
+  channel: '123456789',
+  body: {
+    messages: ['msg-1', 'msg-2', 'msg-3']
+  }
+});
+```
+
+**Endpoint:** `POST /channels/:channel/messages/bulk-delete`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+
+  **Body Parameters:**
+  - `messages` (array, 2-100) - Array of message IDs to delete
+</Accordion>
+
+**Exports:**
+- `bulkDeleteMessages`
+- `bulkDeleteMessagesProcedure`
+- `bulkDeleteMessagesSchema`
+
+**Returns:** `204 No Content`
+
+**Limitations:**
+- Requires `MANAGE_MESSAGES` permission
+- Can only delete 2-100 messages at a time
+- Cannot delete messages older than 2 weeks
+- Cannot delete messages in DM channels
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+---
+
+## Reactions
+
+### Create Reaction
+
+Add a reaction to a message.
+
+```typescript
+import { createReaction } from '@discordkit/client';
+
+await createReaction({
+  channel: '123456789',
+  message: '987654321',
+  emoji: encodeURIComponent('👍')
+});
+
+// Or with custom emoji
+await createReaction({
+  channel: '123456789',
+  message: '987654321',
+  emoji: 'custom_emoji:555555555'
+});
+```
+
+**Endpoint:** `PUT /channels/:channel/messages/:message/reactions/:emoji/@me`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+  - `emoji` (string) - URL-encoded emoji (unicode) or `name:id` (custom)
+</Accordion>
+
+**Exports:**
+- `createReaction`
+- `createReactionProcedure`
+- `createReactionSchema`
+
+**Returns:** `204 No Content`
+
+<Note>
+  Requires `READ_MESSAGE_HISTORY` and `ADD_REACTIONS` permissions. For custom emojis, requires access to the emoji.
+</Note>
+
+### Delete Own Reaction
+
+Delete your own reaction from a message.
+
+```typescript
+import { deleteOwnReaction } from '@discordkit/client';
+
+await deleteOwnReaction({
+  channel: '123456789',
+  message: '987654321',
+  emoji: encodeURIComponent('👍')
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/messages/:message/reactions/:emoji/@me`
+
+**Returns:** `204 No Content`
+
+### Delete User Reaction
+
+Delete another user's reaction from a message.
+
+```typescript
+import { deleteUserReaction } from '@discordkit/client';
+
+await deleteUserReaction({
+  channel: '123456789',
+  message: '987654321',
+  emoji: encodeURIComponent('👍'),
+  user: '111111111'
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/messages/:message/reactions/:emoji/:user`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+  - `emoji` (string) - URL-encoded emoji or `name:id`
+  - `user` (snowflake) - User ID
+</Accordion>
+
+**Returns:** `204 No Content`
+
+<Note>
+  Requires `MANAGE_MESSAGES` permission.
+</Note>
+
+### Get Reactions
+
+Get users who reacted with a specific emoji.
+
+```typescript
+import { getReactions } from '@discordkit/client';
+
+const users = await getReactions({
+  channel: '123456789',
+  message: '987654321',
+  emoji: encodeURIComponent('👍'),
+  params: {
+    limit: 100,
+    after: '0'
+  }
+});
+```
+
+**Endpoint:** `GET /channels/:channel/messages/:message/reactions/:emoji`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+  - `emoji` (string) - URL-encoded emoji or `name:id`
+
+  **Query Parameters (optional):**
+  - `after` (snowflake) - Get users after this user ID
+  - `limit` (integer, 1-100) - Max users to return (default: 25)
+</Accordion>
+
+**Exports:**
+- `getReactions`
+- `getReactionsSafe`
+- `getReactionsProcedure`
+- `getReactionsQuery`
+- `getReactionsSchema`
+
+**Returns:** Array of `User` objects
+
+### Delete All Reactions
+
+Delete all reactions from a message.
+
+```typescript
+import { deleteAllReactions } from '@discordkit/client';
+
+await deleteAllReactions({
+  channel: '123456789',
+  message: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/messages/:message/reactions`
+
+**Returns:** `204 No Content`
+
+<Note>
+  Requires `MANAGE_MESSAGES` permission.
+</Note>
+
+### Delete All Reactions for Emoji
+
+Delete all reactions of a specific emoji from a message.
+
+```typescript
+import { deleteAllReactionsForEmoji } from '@discordkit/client';
+
+await deleteAllReactionsForEmoji({
+  channel: '123456789',
+  message: '987654321',
+  emoji: encodeURIComponent('👍')
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/messages/:message/reactions/:emoji`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+  - `emoji` (string) - URL-encoded emoji or `name:id`
+</Accordion>
+
+**Returns:** `204 No Content`
+
+<Note>
+  Requires `MANAGE_MESSAGES` permission.
+</Note>
+
+---
+
+## Pins
+
+### Get Channel Pins
+
+Get all pinned messages in a channel.
+
+```typescript
+import { getChannelPins } from '@discordkit/client';
+
+const pins = await getChannelPins({
+  channel: '123456789'
+});
+```
+
+**Endpoint:** `GET /channels/:channel/pins`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+</Accordion>
+
+**Exports:**
+- `getChannelPins`
+- `getChannelPinsSafe`
+- `getChannelPinsProcedure`
+- `getChannelPinsQuery`
+- `getChannelPinsSchema`
+
+**Returns:** Array of `Message` objects
+
+### Pin Message
+
+Pin a message in a channel.
+
+```typescript
+import { pinMessage } from '@discordkit/client';
+
+await pinMessage({
+  channel: '123456789',
+  message: '987654321'
+});
+```
+
+**Endpoint:** `PUT /channels/:channel/pins/:message`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+</Accordion>
+
+**Exports:**
+- `pinMessage`
+- `pinMessageProcedure`
+- `pinMessageSchema`
+
+**Returns:** `204 No Content`
+
+<Note>
+  Requires `MANAGE_MESSAGES` permission. Maximum 50 pinned messages per channel. This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+### Unpin Message
+
+Unpin a message in a channel.
+
+```typescript
+import { unpinMessage } from '@discordkit/client';
+
+await unpinMessage({
+  channel: '123456789',
+  message: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/pins/:message`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+</Accordion>
+
+**Exports:**
+- `unpinMessage`
+- `unpinMessageProcedure`
+- `unpinMessageSchema`
+
+**Returns:** `204 No Content`
+
+<Note>
+  Requires `MANAGE_MESSAGES` permission. This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+---
+
+## Announcement Channels
+
+### Crosspost Message
+
+Crosspost a message in an announcement channel to following channels.
+
+```typescript
+import { crosspostMessage } from '@discordkit/client';
+
+const message = await crosspostMessage({
+  channel: '123456789',
+  message: '987654321'
+});
+```
+
+**Endpoint:** `POST /channels/:channel/messages/:message/crosspost`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Announcement channel ID
+  - `message` (snowflake) - Message ID
+</Accordion>
+
+**Exports:**
+- `crosspostMessage`
+- `crosspostMessageSafe`
+- `crosspostMessageProcedure`
+- `crosspostMessageSchema`
+
+**Returns:** `Message` object
+
+<Note>
+  Requires the `SEND_MESSAGES` permission if crossposting own message, or `MANAGE_MESSAGES` permission to crosspost others' messages.
+</Note>
+
+---
+
+## Procedures Export
+
+All message procedures are available as a grouped export:
+
+```typescript
+import { messageProcedures } from '@discordkit/client';
+
+// Access any procedure
+const procedure = messageProcedures.createMessageProcedure;
+```
+
+---
+
+## Message Object
+
+The `Message` object represents a Discord message.
+
+**Key Fields:**
+- `id` (snowflake) - Message ID
+- `channelId` (snowflake) - Channel ID
+- `author` (User) - Author of the message
+- `content` (string) - Message content
+- `timestamp` (string) - When message was sent
+- `editedTimestamp` (string) - When message was edited
+- `tts` (boolean) - Whether TTS message
+- `mentionEveryone` (boolean) - Whether @everyone was mentioned
+- `mentions` (array) - Users mentioned
+- `mentionRoles` (array) - Roles mentioned
+- `mentionChannels` (array) - Channels mentioned
+- `attachments` (array) - File attachments
+- `embeds` (array) - Embedded content
+- `reactions` (array) - Reactions to message
+- `nonce` (string/integer) - Validation nonce
+- `pinned` (boolean) - Whether message is pinned
+- `webhookId` (snowflake) - Webhook ID if sent by webhook
+- `type` (integer) - Message type
+- `activity` (object) - Message activity
+- `application` (object) - Application data
+- `applicationId` (snowflake) - Application ID
+- `messageReference` (object) - Message reference data
+- `flags` (integer) - Message flags
+- `referencedMessage` (Message) - Referenced message
+- `interactionMetadata` (object) - Interaction metadata
+- `thread` (Channel) - Thread started from message
+- `components` (array) - Message components
+- `stickerItems` (array) - Stickers in message
+- `position` (integer) - Position in thread
+- `roleSubscriptionData` (object) - Role subscription data

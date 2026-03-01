@@ -1,0 +1,344 @@
+---
+title: Next.js Integration
+description: Complete example of integrating DiscordKit with Next.js App Router and tRPC
+---
+
+This example demonstrates how to use DiscordKit with Next.js 15, the App Router, and tRPC for type-safe API endpoints.
+
+## Overview
+
+The example application:
+- Uses Next.js 15 with App Router
+- Integrates tRPC for type-safe server procedures
+- Fetches and displays current application information
+- Implements proper error handling with Valibot
+- Uses React Query for data fetching and caching
+
+## Prerequisites
+
+- Node.js 18 or higher
+- A Discord bot token ([create one](https://discord.com/developers/applications))
+
+## Installation
+
+```bash
+npm install @discordkit/client @trpc/server @trpc/client @trpc/react-query @tanstack/react-query valibot
+npm install -D @types/node @types/react @types/react-dom
+```
+
+## Environment Setup
+
+Create a `.env.local` file in your project root:
+
+```bash
+BOT_TOKEN=your_discord_bot_token_here
+```
+
+Validate your environment variables using Valibot:
+
+```typescript src/env.ts
+import * as v from "valibot";
+
+export const envSchema = v.object({
+  BOT_TOKEN: v.message(
+    v.pipe(v.string(), v.nonEmpty()),
+    `Bot token must be set in your ./env.local file!`
+  )
+});
+```
+
+## Setting Up tRPC
+
+### Initialize tRPC Context
+
+Create the tRPC initialization file:
+
+```typescript src/app/api/trpc/[trpc]/init.ts
+import { initTRPC } from "@trpc/server";
+import { cache } from "react";
+
+export const createContext = cache(() => {
+  /**
+   * @see: https://trpc.io/docs/server/context
+   */
+  return {};
+});
+
+const t = initTRPC.create({
+  /**
+   * @see https://trpc.io/docs/server/data-transformers
+   */
+});
+
+export const createTRPCRouter = t.router;
+export const createCallerFactory = t.createCallerFactory;
+export const baseProcedure = t.procedure;
+```
+
+### Create the Router with DiscordKit
+
+Define your tRPC router with DiscordKit procedures:
+
+```typescript src/app/api/trpc/[trpc]/trpc.ts
+import { initTRPC, TRPCError } from "@trpc/server";
+import { discord, getCurrentApplicationProcedure } from "@discordkit/client";
+import { summarize, ValiError } from "valibot";
+
+const token = process.env.BOT_TOKEN;
+discord.setToken(`Bot ${token}`);
+
+const t = initTRPC.create();
+const baseProcedure = t.procedure;
+
+const loggedProcedure = baseProcedure.use(async (opts) => {
+  const result = await opts.next();
+
+  if (!result.ok) {
+    // @ts-expect-error
+    console.error(summarize(result.error.cause.issues));
+  }
+
+  return result;
+});
+
+export const router = t.router({
+  getCurrentApplication: getCurrentApplicationProcedure(
+    loggedProcedure,
+    (cause) => {
+      throw new TRPCError({
+        code: `INTERNAL_SERVER_ERROR`,
+        message:
+          cause instanceof ValiError
+            ? summarize(cause.issues)
+            : `Failed to run procedure "getCurrentApplication"`,
+        cause
+      });
+    }
+  )
+});
+
+export type Router = typeof router;
+```
+
+### Create the API Route Handler
+
+```typescript src/app/api/trpc/[trpc]/route.ts
+import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
+import { createContext } from "./init";
+import { router } from "./trpc";
+
+const handler = async (req: Request): Promise<Response> =>
+  fetchRequestHandler({
+    endpoint: `/api/trpc`,
+    req,
+    router,
+    createContext
+  });
+
+export { handler as GET, handler as POST };
+```
+
+## Client-Side Setup
+
+### Create the tRPC Provider
+
+```typescript src/app/providers.tsx
+"use client";
+import React, { useMemo } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { httpBatchLink, getFetch, loggerLink } from "@trpc/client";
+import { createTRPCReact } from "@trpc/react-query";
+import type { Router } from "./api/trpc/[trpc]/trpc";
+
+export const trpc = createTRPCReact<Router>();
+
+const getUrl = (): string => {
+  const base = ((): string => {
+    if (typeof window !== `undefined`) return ``;
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+    return `http://localhost:3000`;
+  })();
+  return `${base}/api/trpc`;
+};
+
+export const TrpcProvider: React.FC<{ readonly children: React.ReactNode }> = ({
+  children
+}) => {
+  const queryClient = useMemo(
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { staleTime: 5000 } }
+      }),
+    []
+  );
+
+  const trpcClient = useMemo(
+    () =>
+      trpc.createClient({
+        links: [
+          loggerLink({
+            enabled: () => true
+          }),
+          httpBatchLink({
+            url: getUrl(),
+            fetch: async (input, init?) => {
+              const fetch = getFetch();
+              return fetch(input, {
+                ...init,
+                credentials: `include`
+              });
+            }
+          })
+        ]
+      }),
+    []
+  );
+
+  return (
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        {children}
+        <ReactQueryDevtools />
+      </QueryClientProvider>
+    </trpc.Provider>
+  );
+};
+```
+
+### Wrap Your App with the Provider
+
+Update your root layout to include the provider:
+
+```typescript src/app/layout.tsx
+import { TrpcProvider } from "./providers";
+
+export default function RootLayout({
+  children
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <TrpcProvider>{children}</TrpcProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+## Using DiscordKit in Components
+
+### Fetch Application Information
+
+Create a component that uses the tRPC procedure:
+
+```typescript src/components/ApplicationInfo.tsx
+"use client";
+
+import React from "react";
+import Image from "next/image";
+import { userAvatar } from "@discordkit/client/images/userAvatar";
+import { trpc } from "../app/providers";
+
+export const ApplicationInfo: React.FC = () => {
+  const { data, isLoading } = trpc.getCurrentApplication.useQuery();
+
+  if (isLoading) {
+    return <div>{`Loading...`}</div>;
+  }
+
+  if (data) {
+    return (
+      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
+        {data.icon ? (
+          <Image
+            alt={data.name}
+            src={userAvatar({
+              user: data.id,
+              avatar: data.icon,
+              params: { size: 128 }
+            })}
+            width={128}
+            height={128}
+          />
+        ) : null}
+
+        <h1>{data.name}</h1>
+      </div>
+    );
+  }
+  return null;
+};
+```
+
+### Use in Your Pages
+
+```typescript src/app/page.tsx
+import React from "react";
+import { ApplicationInfo } from "../components/ApplicationInfo";
+
+const Home: React.FC = () => (
+  <main className="flex min-h-screen flex-col items-center justify-between p-24">
+    <ApplicationInfo />
+  </main>
+);
+
+export default Home;
+```
+
+## Running the Application
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) to see your application displaying the Discord bot's information.
+
+## Key Features
+
+### Type Safety
+
+The tRPC integration provides end-to-end type safety from the Discord API to your React components. The `Router` type is automatically inferred and used in the client.
+
+### Error Handling
+
+Errors from DiscordKit are properly caught and transformed into tRPC errors with meaningful messages using Valibot's `summarize` function.
+
+### Image Utilities
+
+DiscordKit provides helper functions like `userAvatar` to generate properly formatted Discord CDN URLs for avatars and icons.
+
+### Caching
+
+React Query handles caching with a 5-second stale time, reducing unnecessary API calls to Discord.
+
+## Production Considerations
+
+<Warning>
+  Never expose your `BOT_TOKEN` to the client. Always keep it in server-side environment variables and only use it in API routes or server components.
+</Warning>
+
+- Use environment variable validation on app startup
+- Implement proper error boundaries in your React components
+- Consider rate limiting for Discord API calls
+- Use production-ready logging instead of console.error
+- Remove `ReactQueryDevtools` in production builds
+
+## Complete Example
+
+The full source code for this example is available in the [DiscordKit repository](https://github.com/discordkit/discordkit/tree/main/examples/with-nextjs).
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore all available procedures and functions
+  </Card>
+  <Card title="Helper Utilities" icon="wrench" href="/api/utilities/helpers">
+    Learn about utility functions and helpers
+  </Card>
+</CardGroup>

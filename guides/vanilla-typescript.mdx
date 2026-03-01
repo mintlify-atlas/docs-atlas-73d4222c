@@ -1,0 +1,529 @@
+---
+title: Using Raw Request Handlers
+description: Use DiscordKit's vanilla TypeScript request handlers without any framework
+---
+
+DiscordKit provides direct request handler functions for all Discord API endpoints. These are perfect for server-side scripts, CLI tools, or when you don't need React Query or tRPC.
+
+## Installation
+
+```bash
+npm install @discordkit/client valibot
+```
+
+## Authentication
+
+Before making any requests, configure the Discord client with your authentication token:
+
+<CodeGroup>
+```typescript Bot Token
+import { discord } from '@discordkit/client';
+
+const botToken = process.env.DISCORD_BOT_TOKEN;
+discord.setToken(`Bot ${botToken}`);
+```
+
+```typescript User Token
+import { discord } from '@discordkit/client';
+
+const accessToken = await getOAuthAccessToken();
+discord.setToken(`Bearer ${accessToken}`);
+```
+</CodeGroup>
+
+## Basic Usage
+
+Every Discord API endpoint has a corresponding request handler function:
+
+<Steps>
+  <Step title="Import the handler">
+    ```typescript
+    import { getGuild, getUser, createMessage } from '@discordkit/client';
+    ```
+  </Step>
+
+  <Step title="Call with parameters">
+    ```typescript
+    // GET requests
+    const guild = await getGuild({ 
+      id: '123456789',
+      params: { withCounts: true }
+    });
+
+    const user = await getUser({ 
+      user: '987654321' 
+    });
+
+    // POST requests
+    const message = await createMessage({
+      channel: '123456789',
+      body: {
+        content: 'Hello, world!'
+      }
+    });
+    ```
+  </Step>
+
+  <Step title="Use typed response">
+    ```typescript
+    console.log(guild.name); // Fully typed
+    console.log(guild.approximateMemberCount); // Available when withCounts is true
+    console.log(user.username);
+    console.log(message.id);
+    ```
+  </Step>
+</Steps>
+
+## Request Examples
+
+<Tabs>
+  <Tab title="GET Requests">
+    ```typescript
+    import { 
+      discord,
+      getGuild, 
+      getUser,
+      getCurrentUser,
+      getCurrentUserGuilds,
+      getChannel
+    } from '@discordkit/client';
+
+    discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+
+    // Get guild information
+    const guild = await getGuild({ 
+      id: '123456789',
+      params: { 
+        withCounts: true 
+      }
+    });
+
+    console.log(`Guild: ${guild.name}`);
+    console.log(`Members: ~${guild.approximateMemberCount}`);
+    console.log(`Online: ~${guild.approximatePresenceCount}`);
+
+    // Get user information
+    const user = await getUser({ 
+      user: '987654321' 
+    });
+
+    console.log(`User: ${user.username}#${user.discriminator}`);
+    console.log(`ID: ${user.id}`);
+
+    // Get authenticated user
+    const currentUser = await getCurrentUser({});
+    console.log(`Logged in as: ${currentUser.username}`);
+
+    // List user's guilds
+    const guilds = await getCurrentUserGuilds({
+      params: {
+        limit: 100
+      }
+    });
+
+    guilds.forEach(g => {
+      console.log(`- ${g.name} (${g.id})`);
+    });
+    ```
+  </Tab>
+
+  <Tab title="POST Requests">
+    ```typescript
+    import { 
+      discord,
+      createMessage,
+      createGuild,
+      createWebhook
+    } from '@discordkit/client';
+
+    discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+
+    // Send a simple message
+    const message = await createMessage({
+      channel: '123456789',
+      body: {
+        content: 'Hello from DiscordKit!'
+      }
+    });
+
+    // Send a message with embeds
+    const richMessage = await createMessage({
+      channel: '123456789',
+      body: {
+        content: 'Check out this embed:',
+        embeds: [
+          {
+            title: 'Embed Title',
+            description: 'This is an embedded message',
+            color: 0x00ff00,
+            fields: [
+              {
+                name: 'Field 1',
+                value: 'Value 1',
+                inline: true
+              },
+              {
+                name: 'Field 2',
+                value: 'Value 2',
+                inline: true
+              }
+            ],
+            timestamp: new Date().toISOString()
+          }
+        ]
+      }
+    });
+
+    // Send a message with components
+    const buttonMessage = await createMessage({
+      channel: '123456789',
+      body: {
+        content: 'Click the button below:',
+        components: [
+          {
+            type: 1, // Action Row
+            components: [
+              {
+                type: 2, // Button
+                style: 1, // Primary
+                label: 'Click me!',
+                customId: 'click_button'
+              }
+            ]
+          }
+        ]
+      }
+    });
+    ```
+  </Tab>
+
+  <Tab title="PATCH Requests">
+    ```typescript
+    import { 
+      discord,
+      modifyGuild,
+      modifyChannel,
+      modifyCurrentUser
+    } from '@discordkit/client';
+
+    discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+
+    // Update guild settings
+    const updatedGuild = await modifyGuild({
+      guild: '123456789',
+      body: {
+        name: 'New Guild Name',
+        description: 'Updated description',
+        verificationLevel: 2
+      }
+    });
+
+    console.log(`Guild renamed to: ${updatedGuild.name}`);
+
+    // Update channel
+    const updatedChannel = await modifyChannel({
+      channel: '987654321',
+      body: {
+        name: 'new-channel-name',
+        topic: 'New channel topic'
+      }
+    });
+
+    // Update current user
+    const updatedUser = await modifyCurrentUser({
+      body: {
+        username: 'NewUsername'
+      }
+    });
+    ```
+  </Tab>
+
+  <Tab title="DELETE Requests">
+    ```typescript
+    import { 
+      discord,
+      deleteMessage,
+      deleteChannel,
+      deleteGuild
+    } from '@discordkit/client';
+
+    discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+
+    // Delete a message
+    await deleteMessage({
+      channel: '123456789',
+      message: '987654321'
+    });
+
+    console.log('Message deleted');
+
+    // Delete a channel
+    await deleteChannel({
+      channel: '123456789'
+    });
+
+    console.log('Channel deleted');
+
+    // Delete a guild (owner only)
+    await deleteGuild({
+      guild: '123456789'
+    });
+
+    console.log('Guild deleted');
+    ```
+  </Tab>
+</Tabs>
+
+## Input Validation
+
+Every request handler has a corresponding validation schema for type-safe input validation:
+
+```typescript
+import { 
+  createMessage,
+  createMessageSchema,
+  modifyGuild,
+  modifyGuildSchema
+} from '@discordkit/client';
+import * as v from 'valibot';
+
+// Validate before making request
+const messageInput = {
+  channel: '123456789',
+  body: {
+    content: 'Hello!'
+  }
+};
+
+try {
+  // Parse and validate
+  const validated = v.parse(createMessageSchema, messageInput);
+  
+  // Make request with validated data
+  const message = await createMessage(validated);
+  console.log('Message sent:', message.id);
+} catch (error) {
+  if (error instanceof v.ValiError) {
+    console.error('Validation error:', error.issues);
+  }
+}
+
+// Example: Validate guild update
+const guildUpdate = {
+  guild: '123456789',
+  body: {
+    name: 'My Guild',
+    verificationLevel: 2
+  }
+};
+
+if (v.safeParse(modifyGuildSchema, guildUpdate).success) {
+  const guild = await modifyGuild(guildUpdate);
+  console.log('Guild updated:', guild.name);
+}
+```
+
+## Safe Request Handlers
+
+DiscordKit provides "safe" versions of request handlers that validate both input and output:
+
+```typescript
+import { 
+  getGuildSafe,
+  createMessageSafe,
+  modifyGuildSafe
+} from '@discordkit/client';
+
+// Safe handlers validate input and output automatically
+try {
+  const guild = await getGuildSafe({ 
+    id: '123456789',
+    params: { withCounts: true }
+  });
+  // Both input and output are validated
+  console.log(guild.name);
+} catch (error) {
+  console.error('Validation or request failed:', error);
+}
+
+// If validation fails, an error is thrown
+try {
+  const message = await createMessageSafe({
+    channel: 'invalid-id', // Will fail validation
+    body: { content: 'Hello' }
+  });
+} catch (error) {
+  console.error('Invalid input:', error);
+}
+```
+
+## Rate Limiting
+
+DiscordKit automatically handles rate limiting. Monitor the request queue:
+
+```typescript
+import { discord } from '@discordkit/client';
+
+console.log('Queue size:', discord.getQueueSize());
+console.log('Client ready:', discord.ready);
+
+// Rate limits are handled automatically
+const promises = Array.from({ length: 100 }, (_, i) =>
+  createMessage({
+    channel: '123456789',
+    body: { content: `Message ${i}` }
+  })
+);
+
+// All requests will be queued and executed with proper rate limiting
+await Promise.all(promises);
+console.log('All messages sent!');
+```
+
+## CLI Tool Example
+
+Build a CLI tool to interact with Discord:
+
+```typescript
+#!/usr/bin/env node
+import { discord, createMessage, getCurrentUserGuilds } from '@discordkit/client';
+import { parseArgs } from 'node:util';
+
+const { values } = parseArgs({
+  options: {
+    token: { type: 'string' },
+    channel: { type: 'string' },
+    message: { type: 'string' },
+    'list-guilds': { type: 'boolean' }
+  }
+});
+
+if (!values.token) {
+  console.error('Error: --token is required');
+  process.exit(1);
+}
+
+discord.setToken(`Bot ${values.token}`);
+
+if (values['list-guilds']) {
+  const guilds = await getCurrentUserGuilds({});
+  console.log('Your guilds:');
+  guilds.forEach(g => console.log(`  ${g.name} (${g.id})`));
+  process.exit(0);
+}
+
+if (values.channel && values.message) {
+  const msg = await createMessage({
+    channel: values.channel,
+    body: { content: values.message }
+  });
+  console.log(`Message sent: ${msg.id}`);
+  process.exit(0);
+}
+
+console.error('Error: Invalid arguments');
+process.exit(1);
+```
+
+Usage:
+```bash
+# List guilds
+node cli.js --token=YOUR_BOT_TOKEN --list-guilds
+
+# Send message
+node cli.js --token=YOUR_BOT_TOKEN --channel=123456789 --message="Hello!"
+```
+
+## Server-Side Script Example
+
+Automated guild management script:
+
+```typescript
+import { 
+  discord,
+  getCurrentUserGuilds,
+  getGuild,
+  modifyGuild
+} from '@discordkit/client';
+
+discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+
+async function updateAllGuildDescriptions() {
+  // Get all guilds
+  const guilds = await getCurrentUserGuilds({});
+  
+  console.log(`Found ${guilds.length} guilds`);
+  
+  // Update each guild
+  for (const guild of guilds) {
+    try {
+      const fullGuild = await getGuild({ id: guild.id });
+      
+      // Check if guild needs update
+      if (!fullGuild.description?.includes('Managed by Bot')) {
+        await modifyGuild({
+          guild: guild.id,
+          body: {
+            description: `${fullGuild.description || ''} | Managed by Bot`
+          }
+        });
+        
+        console.log(`✓ Updated ${guild.name}`);
+      } else {
+        console.log(`- Skipped ${guild.name} (already updated)`);
+      }
+    } catch (error) {
+      console.error(`✗ Failed to update ${guild.name}:`, error);
+    }
+  }
+  
+  console.log('Done!');
+}
+
+updateAllGuildDescriptions();
+```
+
+## Error Handling
+
+Handle errors gracefully:
+
+```typescript
+import { discord, getGuild, createMessage } from '@discordkit/client';
+
+discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+
+try {
+  const guild = await getGuild({ id: 'invalid-id' });
+} catch (error) {
+  if (error instanceof Error) {
+    if (error.message.includes('404')) {
+      console.error('Guild not found');
+    } else if (error.message.includes('403')) {
+      console.error('Missing access to guild');
+    } else if (error.message.includes('401')) {
+      console.error('Invalid token');
+    } else {
+      console.error('Unexpected error:', error.message);
+    }
+  }
+}
+```
+
+See the [Error Handling guide](/guides/error-handling) for more details.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="React Query" icon="react" href="/guides/react-query">
+    Use DiscordKit with React Query
+  </Card>
+  <Card title="tRPC" icon="tower-broadcast" href="/guides/trpc">
+    Build type-safe APIs with tRPC
+  </Card>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Learn error handling patterns
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore all endpoints
+  </Card>
+</CardGroup>

@@ -1,0 +1,616 @@
+---
+title: 'Channel Resource'
+description: 'API endpoints for managing Discord channels, threads, and permissions'
+---
+
+The Channel resource provides endpoints to manage Discord channels, including text channels, voice channels, threads, and their permissions. This includes creating, modifying, and deleting channels, as well as managing thread members and permissions.
+
+## Channel Management
+
+### Get Channel
+
+Get a channel by ID. If the channel is a thread, a thread member object is included.
+
+```typescript
+import { getChannel } from '@discordkit/client';
+
+const channel = await getChannel({
+  channel: '123456789'
+});
+```
+
+**Endpoint:** `GET /channels/:channel`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+</Accordion>
+
+**Exports:**
+- `getChannel` - Base fetcher function
+- `getChannelSafe` - Validated version with schema checking
+- `getChannelProcedure` - tRPC-compatible query procedure
+- `getChannelQuery` - TanStack Query-compatible function
+- `getChannelSchema` - Valibot input schema
+
+**Returns:** `Channel` object
+
+**Source:** [getChannel.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/channel/getChannel.ts)
+
+### Modify Channel
+
+Update a channel's settings. All parameters are optional.
+
+```typescript
+import { modifyChannel } from '@discordkit/client';
+
+const updated = await modifyChannel({
+  channel: '123456789',
+  body: {
+    name: 'new-channel-name',
+    topic: 'A new channel topic',
+    nsfw: false,
+    rateLimitPerUser: 5
+  }
+});
+```
+
+**Endpoint:** `PATCH /channels/:channel`
+
+<Accordion title="Parameters (Guild Channels)">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+
+  **Body Parameters:**
+  - `name` (string, 1-100 chars, optional) - Channel name
+  - `type` (integer, optional) - Channel type (only text ↔ announcement conversion supported)
+  - `position` (integer, optional) - Position in left-hand listing
+  - `topic` (string, 0-1024 chars, optional) - Channel topic
+  - `nsfw` (boolean, optional) - Whether channel is NSFW
+  - `rateLimitPerUser` (integer, 0-21600, optional) - Slowmode seconds
+  - `bitrate` (integer, min 8000, optional) - Voice/stage bitrate
+  - `userLimit` (integer, 0-10000, optional) - Voice/stage user limit
+  - `permissionOverwrites` (array, optional) - Channel-specific permissions
+  - `parentId` (snowflake, optional) - New parent category ID
+  - `rtcRegion` (string, optional) - Voice region ID
+  - `videoQualityMode` (integer, optional) - Camera video quality
+  - `defaultAutoArchiveDuration` (integer, optional) - Default thread auto-archive duration
+  - `flags` (integer, optional) - Channel flags bitfield
+  - `availableTags` (array, max 20, optional) - Forum/media channel tags
+  - `defaultReactionEmoji` (object, optional) - Default reaction emoji
+  - `defaultThreadRateLimitPerUser` (integer, 0-21600, optional) - Default thread slowmode
+  - `defaultSortOrder` (integer, optional) - Default forum post sort order
+  - `defaultForumLayout` (integer, optional) - Default forum layout
+</Accordion>
+
+<Accordion title="Parameters (Threads)">
+  **Body Parameters:**
+  - `name` (string, 1-100 chars, optional) - Thread name
+  - `archived` (boolean, optional) - Whether thread is archived
+  - `autoArchiveDuration` (integer, optional) - Auto-archive duration (60, 1440, 4320, 10080)
+  - `locked` (boolean, optional) - Whether thread is locked
+  - `invitable` (boolean, optional) - Whether non-moderators can add others (private threads)
+  - `rateLimitPerUser` (integer, 0-21600, optional) - Thread slowmode
+  - `flags` (integer, optional) - Thread flags
+  - `appliedTags` (array, max 5, optional) - Forum/media thread tags
+</Accordion>
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Exports:**
+- `modifyChannel`
+- `modifyChannelSafe`
+- `modifyChannelProcedure`
+- `modifyChannelSchema`
+
+**Returns:** `Channel` object
+
+### Delete Channel
+
+Delete a channel or close a private message. Requires `MANAGE_CHANNELS` permission for guild channels.
+
+```typescript
+import { deleteChannel } from '@discordkit/client';
+
+await deleteChannel({
+  channel: '123456789'
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel`
+
+<Note>
+  Deleting a guild channel cannot be undone. Use this with caution. This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Returns:** `Channel` object of the deleted channel
+
+### Trigger Typing Indicator
+
+Post a typing indicator for up to 10 seconds.
+
+```typescript
+import { triggerTypingIndicator } from '@discordkit/client';
+
+await triggerTypingIndicator({
+  channel: '123456789'
+});
+```
+
+**Endpoint:** `POST /channels/:channel/typing`
+
+**Returns:** `204 No Content`
+
+---
+
+## Permissions
+
+### Edit Channel Permissions
+
+Edit channel permission overwrites for a user or role.
+
+```typescript
+import { editChannelPermissions } from '@discordkit/client';
+
+await editChannelPermissions({
+  channel: '123456789',
+  overwrite: '987654321',
+  body: {
+    allow: '1024', // VIEW_CHANNEL
+    deny: '2048',  // SEND_MESSAGES
+    type: 0 // ROLE
+  }
+});
+```
+
+**Endpoint:** `PUT /channels/:channel/permissions/:overwrite`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `overwrite` (snowflake) - Role or user ID
+
+  **Body Parameters:**
+  - `allow` (string, optional) - Permissions bit set to allow
+  - `deny` (string, optional) - Permissions bit set to deny
+  - `type` (integer) - 0 for role, 1 for member
+</Accordion>
+
+<Note>
+  This endpoint supports the `X-Audit-Log-Reason` header.
+</Note>
+
+**Returns:** `204 No Content`
+
+### Delete Channel Permission
+
+Delete a channel permission overwrite.
+
+```typescript
+import { deleteChannelPermission } from '@discordkit/client';
+
+await deleteChannelPermission({
+  channel: '123456789',
+  overwrite: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/permissions/:overwrite`
+
+**Returns:** `204 No Content`
+
+---
+
+## Invites
+
+### Create Channel Invite
+
+Create a new invite for the channel.
+
+```typescript
+import { createChannelInvite } from '@discordkit/client';
+
+const invite = await createChannelInvite({
+  channel: '123456789',
+  body: {
+    maxAge: 86400, // 24 hours
+    maxUses: 10,
+    temporary: false
+  }
+});
+```
+
+**Endpoint:** `POST /channels/:channel/invites`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+
+  **Body Parameters:**
+  - `maxAge` (integer, 0-604800, optional) - Duration in seconds (0 = never)
+  - `maxUses` (integer, 0-100, optional) - Max uses (0 = unlimited)
+  - `temporary` (boolean, optional) - Grant temporary membership
+  - `unique` (boolean, optional) - Create unique invite code
+  - `targetType` (integer, optional) - Target type for invite
+  - `targetUserId` (snowflake, optional) - User ID for stream target
+  - `targetApplicationId` (snowflake, optional) - Application ID for embedded app
+</Accordion>
+
+**Returns:** `Invite` object
+
+### Get Channel Invites
+
+Get all invites for a channel.
+
+```typescript
+import { getChannelInvites } from '@discordkit/client';
+
+const invites = await getChannelInvites({
+  channel: '123456789'
+});
+```
+
+**Endpoint:** `GET /channels/:channel/invites`
+
+**Returns:** Array of `Invite` objects
+
+---
+
+## Threads
+
+### Start Thread from Message
+
+Create a thread from an existing message.
+
+```typescript
+import { startThreadFromMessage } from '@discordkit/client';
+
+const thread = await startThreadFromMessage({
+  channel: '123456789',
+  message: '987654321',
+  body: {
+    name: 'Discussion Thread',
+    autoArchiveDuration: 1440
+  }
+});
+```
+
+**Endpoint:** `POST /channels/:channel/messages/:message/threads`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+  - `message` (snowflake) - Message ID
+
+  **Body Parameters:**
+  - `name` (string, 1-100 chars) - Thread name
+  - `autoArchiveDuration` (integer, optional) - Auto-archive duration (60, 1440, 4320, 10080)
+  - `rateLimitPerUser` (integer, optional) - Slowmode seconds
+</Accordion>
+
+**Returns:** `Channel` object (thread)
+
+### Start Thread without Message
+
+Create a thread not connected to a message.
+
+```typescript
+import { startThreadWithoutMessage } from '@discordkit/client';
+
+const thread = await startThreadWithoutMessage({
+  channel: '123456789',
+  body: {
+    name: 'General Discussion',
+    autoArchiveDuration: 1440,
+    type: 11, // PUBLIC_THREAD
+    invitable: false
+  }
+});
+```
+
+**Endpoint:** `POST /channels/:channel/threads`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Channel ID
+
+  **Body Parameters:**
+  - `name` (string, 1-100 chars) - Thread name
+  - `autoArchiveDuration` (integer, optional) - Auto-archive duration
+  - `type` (integer, optional) - Thread type (10 = announcement, 11 = public, 12 = private)
+  - `invitable` (boolean, optional) - Whether non-moderators can add others
+  - `rateLimitPerUser` (integer, optional) - Slowmode seconds
+</Accordion>
+
+**Returns:** `Channel` object (thread)
+
+### Start Thread in Forum or Media Channel
+
+Create a thread in a forum or media channel.
+
+```typescript
+import { startThreadInForumOrMediaChannel } from '@discordkit/client';
+
+const thread = await startThreadInForumOrMediaChannel({
+  channel: '123456789',
+  body: {
+    name: 'Help: How to use X',
+    autoArchiveDuration: 1440,
+    message: {
+      content: 'Can someone help me with...'
+    },
+    appliedTags: ['tag-id-1', 'tag-id-2']
+  }
+});
+```
+
+**Endpoint:** `POST /channels/:channel/threads`
+
+**Returns:** `Channel` object (thread with message)
+
+### Join Thread
+
+Add the current user to a thread.
+
+```typescript
+import { joinThread } from '@discordkit/client';
+
+await joinThread({
+  channel: '123456789'
+});
+```
+
+**Endpoint:** `PUT /channels/:channel/thread-members/@me`
+
+**Returns:** `204 No Content`
+
+### Leave Thread
+
+Remove the current user from a thread.
+
+```typescript
+import { leaveThread } from '@discordkit/client';
+
+await leaveThread({
+  channel: '123456789'
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/thread-members/@me`
+
+**Returns:** `204 No Content`
+
+### Add Thread Member
+
+Add another member to a thread.
+
+```typescript
+import { addThreadMember } from '@discordkit/client';
+
+await addThreadMember({
+  channel: '123456789',
+  user: '987654321'
+});
+```
+
+**Endpoint:** `PUT /channels/:channel/thread-members/:user`
+
+**Returns:** `204 No Content`
+
+### Remove Thread Member
+
+Remove another member from a thread.
+
+```typescript
+import { removeThreadMember } from '@discordkit/client';
+
+await removeThreadMember({
+  channel: '123456789',
+  user: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/thread-members/:user`
+
+**Returns:** `204 No Content`
+
+### Get Thread Member
+
+Get a thread member object for a specific user.
+
+```typescript
+import { getThreadMember } from '@discordkit/client';
+
+const member = await getThreadMember({
+  channel: '123456789',
+  user: '987654321',
+  params: { withMember: true }
+});
+```
+
+**Endpoint:** `GET /channels/:channel/thread-members/:user`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Thread ID
+  - `user` (snowflake) - User ID
+
+  **Query Parameters:**
+  - `withMember` (boolean, optional) - Include guild member object
+</Accordion>
+
+**Returns:** `ThreadMember` object
+
+### List Thread Members
+
+Get all members of a thread.
+
+```typescript
+import { listThreadMembers } from '@discordkit/client';
+
+const members = await listThreadMembers({
+  channel: '123456789',
+  params: {
+    withMember: true,
+    limit: 100
+  }
+});
+```
+
+**Endpoint:** `GET /channels/:channel/thread-members`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Thread ID
+
+  **Query Parameters:**
+  - `withMember` (boolean, optional) - Include guild member object for each thread member
+  - `after` (snowflake, optional) - Get thread members after this user ID
+  - `limit` (integer, 1-100, optional) - Max members to return (default: 100)
+</Accordion>
+
+<Warning>
+  Starting in API v11, this endpoint will always return paginated results. This endpoint is restricted based on whether the `GUILD_MEMBERS` Privileged Intent is enabled.
+</Warning>
+
+**Returns:** Array of `ThreadMember` objects
+
+### List Public Archived Threads
+
+Get public archived threads in a channel.
+
+```typescript
+import { listPublicArchivedThreads } from '@discordkit/client';
+
+const result = await listPublicArchivedThreads({
+  channel: '123456789',
+  params: {
+    before: '2024-01-01T00:00:00Z',
+    limit: 50
+  }
+});
+```
+
+**Endpoint:** `GET /channels/:channel/threads/archived/public`
+
+**Returns:** Object with `threads`, `members`, and `hasMore` properties
+
+### List Private Archived Threads
+
+Get private archived threads in a channel.
+
+```typescript
+import { listPrivateArchivedThreads } from '@discordkit/client';
+
+const result = await listPrivateArchivedThreads({
+  channel: '123456789'
+});
+```
+
+**Endpoint:** `GET /channels/:channel/threads/archived/private`
+
+**Returns:** Object with `threads`, `members`, and `hasMore` properties
+
+### List Joined Private Archived Threads
+
+Get private archived threads the current user has joined.
+
+```typescript
+import { listJoinedPrivateArchivedThreads } from '@discordkit/client';
+
+const result = await listJoinedPrivateArchivedThreads({
+  channel: '123456789'
+});
+```
+
+**Endpoint:** `GET /channels/:channel/users/@me/threads/archived/private`
+
+**Returns:** Object with `threads`, `members`, and `hasMore` properties
+
+---
+
+## Announcement Channels
+
+### Follow Announcement Channel
+
+Follow an announcement channel to send messages to a target channel.
+
+```typescript
+import { followAnnouncementChannel } from '@discordkit/client';
+
+const followed = await followAnnouncementChannel({
+  channel: '123456789',
+  body: {
+    webhookChannelId: '987654321'
+  }
+});
+```
+
+**Endpoint:** `POST /channels/:channel/followers`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `channel` (snowflake) - Announcement channel ID
+
+  **Body Parameters:**
+  - `webhookChannelId` (snowflake) - Target channel ID
+</Accordion>
+
+**Returns:** `FollowedChannel` object
+
+---
+
+## Group DM
+
+### Add Group DM Recipient
+
+Add a recipient to a group DM.
+
+```typescript
+import { groupDMAddRecipient } from '@discordkit/client';
+
+await groupDMAddRecipient({
+  channel: '123456789',
+  user: '987654321',
+  body: {
+    accessToken: 'oauth2-access-token',
+    nick: 'Nickname'
+  }
+});
+```
+
+**Endpoint:** `PUT /channels/:channel/recipients/:user`
+
+**Returns:** `204 No Content`
+
+### Remove Group DM Recipient
+
+Remove a recipient from a group DM.
+
+```typescript
+import { groupDMRemoveRecipient } from '@discordkit/client';
+
+await groupDMRemoveRecipient({
+  channel: '123456789',
+  user: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /channels/:channel/recipients/:user`
+
+**Returns:** `204 No Content`
+
+---
+
+## Procedures Export
+
+All channel procedures are available as a grouped export:
+
+```typescript
+import { channelProcedures } from '@discordkit/client';
+
+// Access any procedure
+const procedure = channelProcedures.getChannelProcedure;
+```

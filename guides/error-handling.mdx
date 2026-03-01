@@ -1,0 +1,631 @@
+---
+title: Error Handling
+description: Handle Discord API errors, rate limits, and validation failures in DiscordKit
+---
+
+DiscordKit provides multiple layers of error handling to help you build robust applications. This guide covers validation errors, API errors, rate limiting, and best practices.
+
+## Error Types
+
+You'll encounter three main types of errors when using DiscordKit:
+
+<CardGroup cols={3}>
+  <Card title="Validation Errors" icon="check-circle">
+    Input/output schema validation failures from Valibot
+  </Card>
+  <Card title="API Errors" icon="cloud">
+    HTTP errors from Discord's API (4xx, 5xx)
+  </Card>
+  <Card title="Rate Limit Errors" icon="clock">
+    429 responses when exceeding rate limits
+  </Card>
+</CardGroup>
+
+## Validation Errors
+
+Every DiscordKit endpoint exports a validation schema. Use these to validate input before making requests:
+
+### Using Validation Schemas
+
+```typescript
+import { 
+  createMessage,
+  createMessageSchema,
+  modifyGuild,
+  modifyGuildSchema
+} from '@discordkit/client';
+import * as v from 'valibot';
+
+// Validate input
+const messageInput = {
+  channel: '123456789',
+  body: {
+    content: 'Hello, world!'
+  }
+};
+
+try {
+  const validated = v.parse(createMessageSchema, messageInput);
+  const message = await createMessage(validated);
+  console.log('Message sent:', message.id);
+} catch (error) {
+  if (error instanceof v.ValiError) {
+    console.error('Validation failed:');
+    error.issues.forEach(issue => {
+      console.error(`  ${issue.path?.map(p => p.key).join('.')}: ${issue.message}`);
+    });
+  }
+}
+```
+
+### Safe Parse
+
+Use `safeParse` for non-throwing validation:
+
+```typescript
+import * as v from 'valibot';
+import { modifyGuildSchema, modifyGuild } from '@discordkit/client';
+
+const input = {
+  guild: '123456789',
+  body: {
+    name: 'My Guild',
+    verificationLevel: 10 // Invalid value
+  }
+};
+
+const result = v.safeParse(modifyGuildSchema, input);
+
+if (result.success) {
+  const guild = await modifyGuild(result.output);
+  console.log('Guild updated:', guild.name);
+} else {
+  console.error('Validation errors:');
+  result.issues.forEach(issue => {
+    console.error(`  ${issue.message}`);
+  });
+}
+```
+
+### Using Safe Request Handlers
+
+DiscordKit provides "safe" versions that validate automatically:
+
+```typescript
+import { 
+  getGuildSafe,
+  createMessageSafe,
+  modifyGuildSafe
+} from '@discordkit/client';
+
+// Input and output are validated automatically
+try {
+  const guild = await getGuildSafe({ 
+    id: '123456789',
+    params: { withCounts: true }
+  });
+  console.log(guild.name); // Guaranteed to be valid
+} catch (error) {
+  // Could be validation error or API error
+  console.error('Request failed:', error);
+}
+```
+
+## Discord API Errors
+
+Discord returns standard HTTP error codes. DiscordKit throws errors for non-2xx responses:
+
+### Common Error Codes
+
+<Tabs>
+  <Tab title="4xx Client Errors">
+    | Code | Meaning | Common Causes |
+    |------|---------|---------------|
+    | 400 | Bad Request | Invalid request body, missing required fields |
+    | 401 | Unauthorized | Invalid or missing token |
+    | 403 | Forbidden | Missing permissions, accessing restricted resource |
+    | 404 | Not Found | Resource doesn't exist |
+    | 429 | Too Many Requests | Rate limited |
+  </Tab>
+
+  <Tab title="5xx Server Errors">
+    | Code | Meaning | Action |
+    |------|---------|--------|
+    | 500 | Internal Server Error | Discord server issue, retry later |
+    | 502 | Bad Gateway | Discord infrastructure issue |
+    | 503 | Service Unavailable | Discord is down or overloaded |
+  </Tab>
+</Tabs>
+
+### Handling API Errors
+
+<CodeGroup>
+```typescript Basic Error Handling
+import { discord, getGuild } from '@discordkit/client';
+
+discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+
+try {
+  const guild = await getGuild({ id: '123456789' });
+  console.log(guild.name);
+} catch (error) {
+  if (error instanceof Error) {
+    if (error.message.includes('404')) {
+      console.error('Guild not found');
+    } else if (error.message.includes('403')) {
+      console.error('Missing access to this guild');
+    } else if (error.message.includes('401')) {
+      console.error('Invalid authentication token');
+    } else {
+      console.error('API error:', error.message);
+    }
+  }
+}
+```
+
+```typescript Advanced Error Parsing
+import { getGuild } from '@discordkit/client';
+
+type DiscordError = {
+  code: number;
+  message: string;
+  statusText: string;
+};
+
+function parseDiscordError(error: unknown): DiscordError | null {
+  if (!(error instanceof Error)) return null;
+  
+  const match = error.message.match(/Request to resource '.*' failed:\s+(\d+)\s+(.*)/s);
+  if (!match) return null;
+  
+  return {
+    code: parseInt(match[1], 10),
+    statusText: match[2].trim(),
+    message: error.message
+  };
+}
+
+try {
+  const guild = await getGuild({ id: 'invalid' });
+} catch (error) {
+  const discordError = parseDiscordError(error);
+  
+  if (discordError) {
+    switch (discordError.code) {
+      case 404:
+        console.error('Resource not found');
+        break;
+      case 403:
+        console.error('Missing permissions');
+        break;
+      case 401:
+        console.error('Invalid token');
+        break;
+      default:
+        console.error(`Discord API error ${discordError.code}: ${discordError.statusText}`);
+    }
+  } else {
+    console.error('Unknown error:', error);
+  }
+}
+```
+</CodeGroup>
+
+## Rate Limiting
+
+DiscordKit automatically handles Discord's rate limits. You don't need to implement retry logic manually.
+
+### How Rate Limiting Works
+
+<Steps>
+  <Step title="Automatic queueing">
+    All requests are queued and processed sequentially with rate limit awareness.
+  </Step>
+  
+  <Step title="429 handling">
+    When a 429 response is received, DiscordKit automatically retries after the specified delay.
+  </Step>
+  
+  <Step title="Global limits">
+    DiscordKit enforces Discord's global limit of 50 requests per second.
+  </Step>
+  
+  <Step title="Per-route limits">
+    Each endpoint has its own rate limit bucket, tracked automatically.
+  </Step>
+</Steps>
+
+### Monitoring Rate Limits
+
+```typescript
+import { discord, createMessage } from '@discordkit/client';
+
+discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+
+// Check queue status
+console.log('Queue size:', discord.getQueueSize());
+console.log('Client ready:', discord.ready);
+
+// Send many messages - all will be rate limited automatically
+const messages = Array.from({ length: 100 }, (_, i) => 
+  createMessage({
+    channel: '123456789',
+    body: { content: `Message ${i}` }
+  })
+);
+
+// DiscordKit handles rate limiting automatically
+await Promise.all(messages);
+console.log('All messages sent!');
+console.log('Final queue size:', discord.getQueueSize());
+```
+
+### Rate Limit Best Practices
+
+<Warning>
+  While DiscordKit handles rate limits automatically, be mindful of:
+  
+  - **Invalid request limits**: 10,000 invalid requests (401, 403, 429 non-shared) per 10 minutes can result in a temporary ban
+  - **Queue buildup**: Sending too many requests at once will queue them, causing delays
+  - **Memory usage**: Large queues consume memory
+</Warning>
+
+```typescript
+import { discord } from '@discordkit/client';
+
+// Monitor queue to avoid buildup
+setInterval(() => {
+  const queueSize = discord.getQueueSize();
+  if (queueSize > 100) {
+    console.warn(`Large queue detected: ${queueSize} requests pending`);
+  }
+}, 5000);
+```
+
+## Framework-Specific Error Handling
+
+<Tabs>
+  <Tab title="React Query">
+    ```tsx
+    import { useQuery, useMutation } from '@tanstack/react-query';
+    import { getGuildQuery, modifyGuild } from '@discordkit/client';
+
+    export function GuildManager({ guildId }: { guildId: string }) {
+      // Query error handling
+      const { data, error, isError } = useQuery({
+        queryKey: ['guild', guildId],
+        queryFn: getGuildQuery({ id: guildId }),
+        retry: (failureCount, error) => {
+          // Don't retry on 404 or 403
+          if (error instanceof Error) {
+            if (error.message.includes('404') || error.message.includes('403')) {
+              return false;
+            }
+          }
+          // Retry up to 3 times for other errors
+          return failureCount < 3;
+        }
+      });
+
+      // Mutation error handling
+      const mutation = useMutation({
+        mutationFn: modifyGuild,
+        onError: (error) => {
+          if (error instanceof Error) {
+            if (error.message.includes('403')) {
+              alert('You do not have permission to modify this guild');
+            } else if (error.message.includes('400')) {
+              alert('Invalid guild settings');
+            } else {
+              alert('Failed to update guild');
+            }
+          }
+        }
+      });
+
+      if (isError) {
+        return (
+          <div className="error">
+            {error instanceof Error && error.message.includes('404')
+              ? 'Guild not found'
+              : 'Failed to load guild'}
+          </div>
+        );
+      }
+
+      return <div>{data?.name}</div>;
+    }
+    ```
+  </Tab>
+
+  <Tab title="tRPC">
+    ```typescript
+    import { initTRPC, TRPCError } from '@trpc/server';
+    import { getGuildProcedure } from '@discordkit/client';
+
+    const t = initTRPC.create();
+
+    // Custom error handler
+    const errorHandler = (error: unknown) => {
+      console.error('Discord API error:', error);
+      
+      if (error instanceof Error) {
+        if (error.message.includes('404')) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Guild not found'
+          });
+        }
+        if (error.message.includes('403')) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Missing access to this guild'
+          });
+        }
+        if (error.message.includes('401')) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Invalid authentication token'
+          });
+        }
+      }
+      
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'An unexpected error occurred'
+      });
+    };
+
+    // Apply error handler to procedure
+    export const appRouter = t.router({
+      getGuild: getGuildProcedure(t.procedure, errorHandler)
+    });
+    ```
+  </Tab>
+
+  <Tab title="Vanilla TypeScript">
+    ```typescript
+    import { discord, getGuild, createMessage } from '@discordkit/client';
+
+    discord.setToken(`Bot ${process.env.DISCORD_BOT_TOKEN}`);
+
+    async function safeGetGuild(guildId: string) {
+      try {
+        return await getGuild({ id: guildId });
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('404')) {
+            throw new Error('Guild not found');
+          }
+          if (error.message.includes('403')) {
+            throw new Error('Missing permissions');
+          }
+          if (error.message.includes('401')) {
+            throw new Error('Invalid token');
+          }
+        }
+        throw error;
+      }
+    }
+
+    async function safeCreateMessage(
+      channelId: string,
+      content: string
+    ) {
+      try {
+        return await createMessage({
+          channel: channelId,
+          body: { content }
+        });
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('403')) {
+            console.error('Missing SEND_MESSAGES permission');
+            return null;
+          }
+          if (error.message.includes('404')) {
+            console.error('Channel not found');
+            return null;
+          }
+        }
+        throw error;
+      }
+    }
+
+    // Usage
+    const guild = await safeGetGuild('123456789');
+    if (guild) {
+      console.log(guild.name);
+    }
+
+    const message = await safeCreateMessage('987654321', 'Hello!');
+    if (message) {
+      console.log('Message sent:', message.id);
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Retry Strategies
+
+Implement custom retry logic for specific use cases:
+
+```typescript
+import { getGuild } from '@discordkit/client';
+
+async function fetchWithRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 3,
+  delay = 1000
+): Promise<T> {
+  let lastError: Error | undefined;
+  
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Don't retry on client errors (4xx except 429)
+      if (lastError.message.includes('40') && !lastError.message.includes('429')) {
+        throw lastError;
+      }
+      
+      if (attempt < maxRetries) {
+        // Exponential backoff
+        await new Promise(resolve => 
+          setTimeout(resolve, delay * Math.pow(2, attempt))
+        );
+      }
+    }
+  }
+  
+  throw lastError;
+}
+
+// Usage
+const guild = await fetchWithRetry(() => 
+  getGuild({ id: '123456789' })
+);
+```
+
+## Session Management
+
+Handle authentication errors by refreshing tokens:
+
+```typescript
+import { discord, getCurrentUser } from '@discordkit/client';
+
+let accessToken = localStorage.getItem('discord_token');
+
+async function refreshAccessToken() {
+  const response = await fetch('https://discord.com/api/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: process.env.CLIENT_ID!,
+      client_secret: process.env.CLIENT_SECRET!,
+      grant_type: 'refresh_token',
+      refresh_token: localStorage.getItem('refresh_token')!
+    })
+  });
+  
+  const data = await response.json();
+  accessToken = data.access_token;
+  localStorage.setItem('discord_token', accessToken);
+  return accessToken;
+}
+
+async function makeAuthenticatedRequest<T>(fn: () => Promise<T>): Promise<T> {
+  discord.setToken(`Bearer ${accessToken}`);
+  
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('401')) {
+      // Token expired, refresh and retry
+      const newToken = await refreshAccessToken();
+      discord.setToken(`Bearer ${newToken}`);
+      return await fn();
+    }
+    throw error;
+  }
+}
+
+// Usage
+const user = await makeAuthenticatedRequest(() => getCurrentUser({}));
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always validate input">
+    Use validation schemas before making requests to catch errors early:
+    
+    ```typescript
+    import * as v from 'valibot';
+    import { createMessageSchema, createMessage } from '@discordkit/client';
+    
+    const input = { /* ... */ };
+    const result = v.safeParse(createMessageSchema, input);
+    
+    if (result.success) {
+      await createMessage(result.output);
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Handle specific error codes">
+    Different errors require different handling:
+    
+    - **401**: Refresh authentication token
+    - **403**: Inform user of missing permissions
+    - **404**: Handle missing resources gracefully
+    - **429**: Already handled automatically
+    - **5xx**: Retry with exponential backoff
+  </Accordion>
+
+  <Accordion title="Monitor rate limits">
+    Check queue size periodically to avoid buildup:
+    
+    ```typescript
+    import { discord } from '@discordkit/client';
+    
+    setInterval(() => {
+      const queueSize = discord.getQueueSize();
+      if (queueSize > 50) {
+        console.warn(`Queue buildup: ${queueSize} requests`);
+      }
+    }, 5000);
+    ```
+  </Accordion>
+
+  <Accordion title="Use error boundaries in React">
+    Catch errors at component boundaries:
+    
+    ```tsx
+    import { ErrorBoundary } from 'react-error-boundary';
+    
+    function ErrorFallback({ error }: { error: Error }) {
+      return (
+        <div role="alert">
+          <h2>Something went wrong</h2>
+          <pre>{error.message}</pre>
+        </div>
+      );
+    }
+    
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <GuildManager />
+    </ErrorBoundary>
+    ```
+  </Accordion>
+
+  <Accordion title="Log errors for debugging">
+    Implement comprehensive error logging:
+    
+    ```typescript
+    function logDiscordError(error: unknown, context: string) {
+      console.error(`[${context}] Discord API error:`, {
+        error: error instanceof Error ? error.message : error,
+        timestamp: new Date().toISOString(),
+        queueSize: discord.getQueueSize()
+      });
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="React Query" icon="react" href="/guides/react-query">
+    Error handling with React Query
+  </Card>
+  <Card title="tRPC" icon="tower-broadcast" href="/guides/trpc">
+    Error handling in tRPC
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore all endpoints
+  </Card>
+</CardGroup>

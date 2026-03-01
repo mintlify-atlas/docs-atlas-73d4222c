@@ -1,0 +1,396 @@
+---
+title: Using DiscordKit with React Query
+description: Learn how to integrate DiscordKit with TanStack Query (React Query) for efficient data fetching and state management
+---
+
+DiscordKit provides pre-built query functions for all GET endpoints, making it easy to integrate with TanStack Query (React Query). These query functions handle authentication, type safety, and validation automatically.
+
+## Installation
+
+<Steps>
+  <Step title="Install dependencies">
+    ```bash
+    npm install @discordkit/client @tanstack/react-query valibot
+    ```
+  </Step>
+
+  <Step title="Set up Query Client">
+    Wrap your application with the `QueryClientProvider`:
+
+    ```tsx
+    import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+    const queryClient = new QueryClient();
+
+    function App() {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {/* Your app components */}
+        </QueryClientProvider>
+      );
+    }
+    ```
+  </Step>
+
+  <Step title="Configure authentication">
+    Set your Discord token before making requests:
+
+    ```tsx
+    import { discord } from '@discordkit/client';
+
+    // For user authentication
+    discord.setToken('Bearer YOUR_ACCESS_TOKEN');
+
+    // For bot authentication
+    discord.setToken('Bot YOUR_BOT_TOKEN');
+    ```
+  </Step>
+</Steps>
+
+## Query Functions
+
+For every GET endpoint, DiscordKit exports a query function with the naming pattern `{endpoint}Query`. These functions are designed to work seamlessly with `useQuery`.
+
+### Basic Usage
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { getUserQuery } from '@discordkit/client';
+
+export function UserProfile({ userId }: { userId: string }) {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['user', userId],
+    queryFn: getUserQuery({ user: userId })
+  });
+
+  if (isLoading) return <div>Loading...</div>;
+  if (isError) return <div>Error: {error.message}</div>;
+
+  return (
+    <div>
+      <h1>{data.username}</h1>
+      <p>ID: {data.id}</p>
+      {data.avatar && (
+        <img 
+          src={`https://cdn.discordapp.com/avatars/${data.id}/${data.avatar}.png`} 
+          alt={data.username}
+        />
+      )}
+    </div>
+  );
+}
+```
+
+### With Query Parameters
+
+Some endpoints accept optional parameters. Pass them through the query function:
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { getGuildQuery } from '@discordkit/client';
+
+export function GuildInfo({ guildId }: { guildId: string }) {
+  const { data } = useQuery({
+    queryKey: ['guild', guildId, { withCounts: true }],
+    queryFn: getGuildQuery({
+      id: guildId,
+      params: {
+        withCounts: true // Include approximate member and presence counts
+      }
+    })
+  });
+
+  return (
+    <div>
+      <h2>{data?.name}</h2>
+      <p>Members: ~{data?.approximateMemberCount}</p>
+      <p>Online: ~{data?.approximatePresenceCount}</p>
+    </div>
+  );
+}
+```
+
+## Mutations
+
+For POST, PATCH, PUT, and DELETE endpoints, use the raw request handlers with `useMutation`:
+
+<Tabs>
+  <Tab title="Creating Data">
+    ```tsx
+    import { useMutation, useQueryClient } from '@tanstack/react-query';
+    import { createMessage, createMessageSchema } from '@discordkit/client';
+    import { useState } from 'react';
+
+    export function SendMessage({ channelId }: { channelId: string }) {
+      const [content, setContent] = useState('');
+      const queryClient = useQueryClient();
+
+      const mutation = useMutation({
+        mutationFn: createMessage,
+        onMutate: (variables) => {
+          // Validate input before sending
+          createMessageSchema.parse(variables);
+        },
+        onSuccess: () => {
+          // Invalidate and refetch messages
+          queryClient.invalidateQueries({ queryKey: ['messages', channelId] });
+          setContent('');
+        }
+      });
+
+      const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        mutation.mutate({
+          channel: channelId,
+          body: { content }
+        });
+      };
+
+      return (
+        <form onSubmit={handleSubmit}>
+          {mutation.error && (
+            <div className="error">
+              {mutation.error.message}
+              <button onClick={() => mutation.reset()}>Dismiss</button>
+            </div>
+          )}
+          <input
+            type="text"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Type your message..."
+            disabled={mutation.isPending}
+          />
+          <button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? 'Sending...' : 'Send'}
+          </button>
+        </form>
+      );
+    }
+    ```
+  </Tab>
+
+  <Tab title="Updating Data">
+    ```tsx
+    import { useMutation, useQueryClient } from '@tanstack/react-query';
+    import { modifyGuild, modifyGuildSchema } from '@discordkit/client';
+    import { useState } from 'react';
+
+    export function RenameGuild({ guild }: { guild: { id: string; name: string } }) {
+      const [name, setName] = useState(guild.name);
+      const queryClient = useQueryClient();
+
+      const mutation = useMutation({
+        mutationFn: modifyGuild,
+        onMutate: (variables) => {
+          // Validate input before sending
+          modifyGuildSchema.parse(variables);
+        },
+        onSuccess: (data) => {
+          // Update the cache with the new guild data
+          queryClient.setQueryData(['guild', guild.id], data);
+        }
+      });
+
+      const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        mutation.mutate({
+          guild: guild.id,
+          body: { name }
+        });
+      };
+
+      return (
+        <form onSubmit={handleSubmit}>
+          {mutation.error && (
+            <div className="error" onClick={() => mutation.reset()}>
+              {mutation.error.message}
+            </div>
+          )}
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={mutation.isPending}
+          />
+          <button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? 'Saving...' : 'Rename Guild'}
+          </button>
+        </form>
+      );
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Optimistic Updates
+
+Implement optimistic updates for a better user experience:
+
+```tsx
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { modifyGuild } from '@discordkit/client';
+import type { Guild } from '@discordkit/client';
+
+export function useUpdateGuildName(guildId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: modifyGuild,
+    onMutate: async (variables) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['guild', guildId] });
+
+      // Snapshot the previous value
+      const previousGuild = queryClient.getQueryData<Guild>(['guild', guildId]);
+
+      // Optimistically update to the new value
+      if (previousGuild) {
+        queryClient.setQueryData<Guild>(['guild', guildId], {
+          ...previousGuild,
+          ...variables.body
+        });
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousGuild };
+    },
+    onError: (err, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousGuild) {
+        queryClient.setQueryData(['guild', guildId], context.previousGuild);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: ['guild', guildId] });
+    }
+  });
+}
+```
+
+## Input Validation
+
+All DiscordKit endpoints export validation schemas that you can use to validate inputs:
+
+```tsx
+import { modifyGuildSchema } from '@discordkit/client';
+import * as v from 'valibot';
+
+function validateGuildUpdate(data: unknown) {
+  try {
+    const validated = v.parse(modifyGuildSchema, data);
+    return { success: true, data: validated };
+  } catch (error) {
+    return { success: false, error };
+  }
+}
+
+// Use in a form
+const result = validateGuildUpdate({
+  guild: '123456789',
+  body: { name: 'My New Guild Name' }
+});
+
+if (result.success) {
+  // Data is valid and typed
+  mutation.mutate(result.data);
+}
+```
+
+## Advanced Patterns
+
+### Infinite Queries
+
+For paginated endpoints, use `useInfiniteQuery`:
+
+```tsx
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { getCurrentUserGuilds } from '@discordkit/client';
+
+export function GuildList() {
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = useInfiniteQuery({
+    queryKey: ['user-guilds'],
+    queryFn: async ({ pageParam }) => {
+      return getCurrentUserGuilds({
+        params: {
+          after: pageParam,
+          limit: 20
+        }
+      });
+    },
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) => {
+      // Return the ID of the last guild for pagination
+      return lastPage[lastPage.length - 1]?.id;
+    }
+  });
+
+  return (
+    <div>
+      {data?.pages.map((page, i) => (
+        <div key={i}>
+          {page.map((guild) => (
+            <div key={guild.id}>{guild.name}</div>
+          ))}
+        </div>
+      ))}
+      {hasNextPage && (
+        <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+          {isFetchingNextPage ? 'Loading...' : 'Load More'}
+        </button>
+      )}
+    </div>
+  );
+}
+```
+
+### Dependent Queries
+
+Chain queries that depend on each other:
+
+```tsx
+import { useQuery } from '@tanstack/react-query';
+import { getCurrentUserQuery, getGuildQuery } from '@discordkit/client';
+
+export function CurrentUserPrimaryGuild() {
+  // Get the current user
+  const { data: user } = useQuery({
+    queryKey: ['current-user'],
+    queryFn: getCurrentUserQuery({})
+  });
+
+  // Get their guilds (only runs if user is available)
+  const { data: guilds } = useQuery({
+    queryKey: ['user-guilds', user?.id],
+    queryFn: getCurrentUserGuilds({}),
+    enabled: !!user
+  });
+
+  // Get details of first guild (only runs if guilds are available)
+  const firstGuildId = guilds?.[0]?.id;
+  const { data: guild } = useQuery({
+    queryKey: ['guild', firstGuildId],
+    queryFn: getGuildQuery({ id: firstGuildId! }),
+    enabled: !!firstGuildId
+  });
+
+  return <div>{guild?.name}</div>;
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Error Handling" icon="triangle-exclamation" href="/guides/error-handling">
+    Learn how to handle errors gracefully
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore all available endpoints
+  </Card>
+</CardGroup>

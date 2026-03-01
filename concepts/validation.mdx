@@ -1,0 +1,532 @@
+---
+title: Validation
+description: Runtime type validation with Valibot schemas in DiscordKit
+---
+
+## Overview
+
+DiscordKit uses [Valibot](https://valibot.dev) for runtime schema validation, providing type-safe validation for both input parameters and API responses. This ensures your application handles data correctly and catches errors early.
+
+## Why Validation?
+
+Runtime validation provides:
+
+- **Type Safety**: Catch type errors at runtime, not just compile time
+- **Data Integrity**: Ensure API responses match expected schemas
+- **Better Errors**: Get detailed validation errors instead of generic failures
+- **User Input Safety**: Validate user-provided data before sending to Discord
+
+## Validation Variants
+
+Every DiscordKit fetcher comes in three variants:
+
+<Tabs>
+  <Tab title="Standard (Unvalidated)">
+    The default variant with no runtime validation:
+
+    ```typescript
+    import { getGlobalApplicationCommands } from '@discordkit/client';
+
+    // Fast, but no validation
+    const commands = await getGlobalApplicationCommands({
+      application: '123456789'
+    });
+    ```
+
+    <Note>
+      Use this for trusted data or when performance is critical.
+    </Note>
+  </Tab>
+
+  <Tab title="Safe (Validated)">
+    The `*Safe` variant validates both input and output:
+
+    ```typescript
+    import { getGlobalApplicationCommandsSafe } from '@discordkit/client';
+
+    // Validates input schema and output schema
+    const commands = await getGlobalApplicationCommandsSafe({
+      application: '123456789'
+    });
+    // Throws detailed error if validation fails
+    ```
+
+    <Note>
+      Use this when working with user input or untrusted data.
+    </Note>
+  </Tab>
+
+  <Tab title="Custom Validation">
+    Create custom validated variants with `toValidated`:
+
+    ```typescript
+    import { toValidated, getCurrentApplication } from '@discordkit/client';
+    import { applicationSchema } from '@discordkit/client/application';
+
+    const customValidated = toValidated(
+      getCurrentApplication,
+      null, // No input schema
+      applicationSchema // Output schema
+    );
+    ```
+  </Tab>
+</Tabs>
+
+## The toValidated Helper
+
+`toValidated` wraps a fetcher with input and output validation:
+
+```typescript
+import { toValidated } from '@discordkit/core';
+import * as v from 'valibot';
+
+export const getGlobalApplicationCommandsSafe = toValidated(
+  getGlobalApplicationCommands,
+  getGlobalApplicationCommandsSchema, // Input validation
+  v.array(applicationCommandSchema)    // Output validation
+);
+```
+
+Source: `/home/daytona/workspace/source/packages/client/src/application/getGlobalApplicationCommands.ts:42`
+
+### How It Works
+
+The `toValidated` function uses a Proxy to intercept calls:
+
+1. **Validate Input**: Check input against the input schema
+2. **Execute Request**: Call the original fetcher
+3. **Validate Output**: Check response against the output schema
+4. **Return or Throw**: Return data if valid, throw detailed error if not
+
+```typescript
+export const toValidated = <F extends Fetcher>(
+  fn: F,
+  input?: GenericSchema | null,
+  output?: GenericSchema
+): F =>
+  new Proxy<F>(fn, {
+    async apply(target, _, [config]): Promise<ReturnType<F>> {
+      // Validate input
+      if (input && isOfKind(`schema`, input)) {
+        const { issues } = await safeParseAsync(input, config);
+        if (issues) {
+          throw new Error(
+            `Failed to parse input schema: ${input.reference.name}\n\n${summarize(issues)}`
+          );
+        }
+      }
+
+      const result = await target(config);
+
+      // Validate output
+      if (output && isOfKind(`schema`, output)) {
+        const { issues } = await safeParseAsync(output, result);
+        if (issues) {
+          throw new Error(
+            `Failed to parse output schema: ${output.reference.name}\n\n${summarize(issues)}`
+          );
+        }
+      }
+
+      return result as ReturnType<F>;
+    }
+  });
+```
+
+Source: `/home/daytona/workspace/source/packages/core/src/requests/toValidated.ts:24`
+
+## Built-in Validators
+
+DiscordKit provides custom Valibot validators for Discord-specific types:
+
+### Snowflake
+
+Validates Discord snowflake IDs:
+
+```typescript
+import * as v from 'valibot';
+import { snowflake } from '@discordkit/core';
+
+const schema = v.object({
+  userId: snowflake,
+  guildId: snowflake,
+  channelId: snowflake
+});
+
+// Valid
+v.parse(schema, {
+  userId: '123456789012345678',
+  guildId: '987654321098765432',
+  channelId: '111111111111111111'
+});
+
+// Invalid - throws error
+v.parse(schema, {
+  userId: 'not-a-snowflake' // Error: Invalid Snowflake
+});
+```
+
+**Implementation:**
+
+```typescript
+export const snowflake: v.GenericSchema<string> = v.pipe(
+  v.custom<string, `Invalid Snowflake`>(
+    (val) =>
+      isNonNullable(val) &&
+      (typeof val === `bigint` ||
+        typeof val === `number` ||
+        isNumericString(val)) &&
+      snowflakeToDate(val).getTime() >= DISCORD_EPOCH,
+    `Invalid Snowflake`
+  ),
+  v.title(`snowflake`)
+);
+```
+
+Source: `/home/daytona/workspace/source/packages/core/src/validations/snowflake.ts:31`
+
+### Bounded String
+
+Validates strings within length constraints:
+
+```typescript
+import { boundedString } from '@discordkit/core';
+import * as v from 'valibot';
+
+const schema = v.object({
+  username: boundedString({ min: 2, max: 32 }),
+  bio: boundedString({ max: 190 }),
+  tag: boundedString(4) // Exact length
+});
+
+// Valid
+v.parse(schema, {
+  username: 'CoolUser',
+  bio: 'I love coding',
+  tag: '0001'
+});
+
+// Invalid
+v.parse(schema, {
+  username: 'a', // Too short
+  bio: 'x'.repeat(200), // Too long
+  tag: '001' // Wrong length
+});
+```
+
+**Implementation:**
+
+```typescript
+export const boundedString = (
+  req: number | { min?: number; max?: number } = {}
+): v.GenericSchema<string> =>
+  v.message<v.GenericSchema<string>>(
+    typeof req === `number`
+      ? v.pipe(v.string(), v.length(req))
+      : typeof req.max === `number`
+        ? v.pipe(v.string(), v.minLength(req.min ?? 1), v.maxLength(req.max))
+        : v.pipe(v.string(), v.minLength(req.min ?? 1)),
+    (issue) =>
+      `Expected a string with a length ${...}, received has length: ${issue.received.length}`
+  );
+```
+
+Source: `/home/daytona/workspace/source/packages/core/src/validations/boundedString.ts:4`
+
+### Bounded Integer
+
+Validates integers within value ranges:
+
+```typescript
+import { boundedInteger } from '@discordkit/core';
+import * as v from 'valibot';
+
+const schema = v.object({
+  maxUses: boundedInteger({ min: 0, max: 100 }),
+  maxAge: boundedInteger({ min: 0 }),
+  version: boundedInteger(1) // Exact value
+});
+```
+
+Source: `/home/daytona/workspace/source/packages/core/src/validations/boundedInteger.ts:4`
+
+### Bounded Array
+
+Validates arrays within size constraints:
+
+```typescript
+import { boundedArray } from '@discordkit/core';
+import * as v from 'valibot';
+
+const schema = v.object({
+  // Max 10 embeds
+  embeds: boundedArray(embedSchema, { max: 10 }),
+  // Between 1-25 options
+  options: boundedArray(optionSchema, { min: 1, max: 25 })
+});
+```
+
+### Bitfield
+
+Validates Discord bitfield flags:
+
+```typescript
+import { bitfield } from '@discordkit/core';
+import * as v from 'valibot';
+
+enum MessageFlags {
+  CROSSPOSTED = 1 << 0,
+  IS_CROSSPOST = 1 << 1,
+  SUPPRESS_EMBEDS = 1 << 2,
+  SOURCE_MESSAGE_DELETED = 1 << 3
+}
+
+const messageFlag = bitfield('MessageFlags', MessageFlags);
+
+const schema = v.object({
+  flags: messageFlag
+});
+
+// Valid
+v.parse(schema, {
+  flags: MessageFlags.CROSSPOSTED | MessageFlags.SUPPRESS_EMBEDS
+});
+```
+
+**Implementation:**
+
+```typescript
+export const bitfield = <TName extends string>(
+  name: TName,
+  flags: Flags,
+  message: string = `Invalid Bitfield`
+): SchemaWithPipe<...> => {
+  const flagValues = Object.values(flags).filter(
+    (flag) => !isNaN(Number(flag))
+  );
+  const mask = flagValues.reduce<bigint>(
+    (total, flag) => total | BigInt(flag),
+    0n
+  );
+  return pipe(
+    custom<number | bigint | string, typeof message>(
+      (val) =>
+        isNonNullable(val) &&
+        (typeof val === `number` ||
+          typeof val === `bigint` ||
+          isNumericString(val))
+          ? (BigInt(val) & mask) === BigInt(val)
+          : false,
+      message
+    ),
+    title(name)
+  );
+};
+```
+
+Source: `/home/daytona/workspace/source/packages/core/src/validations/bitfield.ts:22`
+
+### Other Validators
+
+DiscordKit includes additional validators:
+
+- `asDigits`: Convert string to string of digits
+- `asInteger`: Convert to integer
+- `datauri`: Validate data URIs
+- `hasMimeType`: Validate MIME types
+- `hasSize`: Validate file sizes
+- `timestamp`: Validate ISO timestamps
+- `toBlob`: Convert to Blob
+- `url`: Validate URLs
+
+## Schema Examples
+
+### Simple Object Schema
+
+```typescript
+import * as v from 'valibot';
+import { snowflake, boundedString } from '@discordkit/core';
+
+const createWebhookSchema = v.object({
+  channel: snowflake,
+  body: v.object({
+    name: boundedString({ max: 80 }),
+    avatar: v.optional(v.string())
+  })
+});
+```
+
+Source: `/home/daytona/workspace/source/packages/client/src/webhook/createWebhook.ts:13`
+
+### Complex Schema with Unions
+
+```typescript
+import * as v from 'valibot';
+import { snowflake, boundedString, boundedArray } from '@discordkit/core';
+
+export const applicationCommandSchema = v.intersect([
+  v.object({
+    id: snowflake,
+    applicationId: snowflake,
+    guildId: v.exactOptional(snowflake),
+    name: boundedString({ max: 32 }),
+    description: v.exactOptional(boundedString({ min: 0, max: 100 }))
+  }),
+  v.union([
+    v.object({
+      type: v.exactOptional(applicationCommandTypeSchema)
+    }),
+    v.variant(`type`, [
+      v.object({
+        type: v.literal(ApplicationCommandType.CHAT_INPUT),
+        options: v.exactOptional(
+          boundedArray(applicationCommandOptionSchema, { max: 25 })
+        )
+      }),
+      v.object({
+        type: v.literal(ApplicationCommandType.PRIMARY_ENTRY_POINT)
+      })
+    ])
+  ])
+]);
+```
+
+Source: `/home/daytona/workspace/source/packages/client/src/application-commands/types/ApplicationCommand.ts:17`
+
+### Schema with Nested Objects
+
+```typescript
+import * as v from 'valibot';
+import { snowflake, boundedString, boundedArray, asInteger } from '@discordkit/core';
+
+const createMessageSchema = v.object({
+  channel: snowflake,
+  body: v.partial(
+    v.object({
+      content: boundedString({ max: 2000 }),
+      tts: v.boolean(),
+      embeds: v.array(embedSchema),
+      allowedMentions: allowedMentionSchema,
+      components: messageComponentSchema,
+      stickerIds: boundedArray(v.string(), { max: 3 }),
+      attachments: v.array(v.partial(attachmentSchema)),
+      flags: asInteger(messageFlag)
+    })
+  )
+});
+```
+
+Source: `/home/daytona/workspace/source/packages/client/src/messages/createMessage.ts:20`
+
+## Error Handling
+
+Validation errors provide detailed information:
+
+```typescript
+import { getGlobalApplicationCommandsSafe } from '@discordkit/client';
+import { ValiError } from 'valibot';
+
+try {
+  const commands = await getGlobalApplicationCommandsSafe({
+    application: 'invalid-id' // Not a valid snowflake
+  });
+} catch (error) {
+  if (error instanceof ValiError) {
+    console.error('Validation failed:');
+    error.issues.forEach(issue => {
+      console.error(`- ${issue.path}: ${issue.message}`);
+    });
+  }
+}
+```
+
+### Using with tRPC
+
+```typescript
+import { summarize, ValiError } from 'valibot';
+import { TRPCError } from '@trpc/server';
+
+const loggedProcedure = baseProcedure.use(async (opts) => {
+  const result = await opts.next();
+
+  if (!result.ok) {
+    // Log validation errors
+    console.error(summarize(result.error.cause.issues));
+  }
+
+  return result;
+});
+
+export const router = t.router({
+  getCurrentApplication: getCurrentApplicationProcedure(
+    loggedProcedure,
+    (cause) => {
+      throw new TRPCError({
+        code: `INTERNAL_SERVER_ERROR`,
+        message:
+          cause instanceof ValiError
+            ? summarize(cause.issues)
+            : `Failed to run procedure`,
+        cause
+      });
+    }
+  )
+});
+```
+
+Source: `/home/daytona/workspace/source/examples/with-nextjs/src/app/api/trpc/[trpc]/trpc.ts:11`
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Safe Variants for User Input" icon="shield-check">
+    Always use `*Safe` variants when validating data from users or external sources.
+  </Card>
+  
+  <Card title="Standard for Trusted Data" icon="gauge-high">
+    Use standard (unvalidated) variants for internal data or when performance matters.
+  </Card>
+  
+  <Card title="Custom Validators" icon="code">
+    Create custom validators for domain-specific validation logic.
+  </Card>
+  
+  <Card title="Handle Errors Gracefully" icon="triangle-exclamation">
+    Always catch and handle ValiError to provide user-friendly error messages.
+  </Card>
+</CardGroup>
+
+## Performance Considerations
+
+Validation adds runtime overhead:
+
+```typescript
+// Fastest - no validation
+const fast = await getGlobalApplicationCommands({ application: id });
+
+// Slower - validates input and output
+const safe = await getGlobalApplicationCommandsSafe({ application: id });
+
+// Middle ground - validate input only
+const custom = toValidated(
+  getGlobalApplicationCommands,
+  getGlobalApplicationCommandsSchema,
+  null // Skip output validation
+);
+```
+
+<Note>
+  For most applications, the validation overhead is negligible compared to network latency. Use safe variants by default and optimize only if profiling shows validation is a bottleneck.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Integrations" icon="puzzle-piece" href="/concepts/integrations">
+    Learn about tRPC and React Query integrations
+  </Card>
+  
+  <Card title="Valibot Documentation" icon="book" href="https://valibot.dev">
+    Explore the full Valibot documentation
+  </Card>
+</CardGroup>

@@ -1,0 +1,90 @@
+---
+title: Audit Log
+description: API reference for Discord audit log resource endpoints
+---
+
+Audit logs provide a record of administrative and moderation actions taken in a guild. Access to audit logs requires the `VIEW_AUDIT_LOG` permission.
+
+## Available Endpoints
+
+### Get Guild Audit Log
+
+Retrieve audit log entries for a guild.
+
+**GET** `/guilds/:guild/audit-logs`
+
+```typescript
+import { getGuildAuditLog } from "@discordkit/client";
+
+const auditLog = await getGuildAuditLog({
+  guild: "123456789",
+  params: {
+    userId: "987654321", // Optional: filter by user
+    actionType: 1, // Optional: filter by action type
+    before: "111111111", // Optional: entries before this ID
+    after: "222222222", // Optional: entries after this ID
+    limit: 50 // Optional: max entries (1-100, defaults to 50)
+  }
+});
+```
+
+**Permissions:** Requires `VIEW_AUDIT_LOG` permission.
+
+**Returns:** An audit log object for the guild.
+
+**Pagination:**
+- When using `before`, the list is ordered by audit log entry ID descending (newer entries first)
+- When using `after`, the list is reversed and appears in ascending order (older entries first)
+- Omitting both `before` and `after` defaults to `before` the current timestamp and shows the most recent entries in descending order
+- Use `after=0` to show the oldest entries first
+
+**Exports:**
+- `getGuildAuditLog` - Handler function
+- `getGuildAuditLogSchema` - Valibot schema for validation
+- `getGuildAuditLogSafe` - Validated handler
+- `getGuildAuditLogProcedure` - tRPC procedure (query)
+- `getGuildAuditLogQuery` - Query helper
+
+## Procedure Exports
+
+All audit log procedures are also exported as a namespace:
+
+```typescript
+import { logsProcedures } from "@discordkit/client";
+
+// Access the procedure:
+logsProcedures.getGuildAuditLogProcedure
+```
+
+## Example: Filtering Audit Logs
+
+```typescript
+import { getGuildAuditLog } from "@discordkit/client";
+
+// Get the most recent 25 member ban events
+const banLogs = await getGuildAuditLog({
+  guild: "123456789",
+  params: {
+    actionType: 22, // MEMBER_BAN_ADD
+    limit: 25
+  }
+});
+
+// Get all actions by a specific moderator
+const modActions = await getGuildAuditLog({
+  guild: "123456789",
+  params: {
+    userId: "moderator_id",
+    limit: 100
+  }
+});
+
+// Paginate through old entries
+const oldEntries = await getGuildAuditLog({
+  guild: "123456789",
+  params: {
+    after: "0", // Start from the oldest
+    limit: 50
+  }
+});
+```

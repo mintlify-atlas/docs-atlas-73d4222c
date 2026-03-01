@@ -1,0 +1,163 @@
+---
+title: Voice
+description: API reference for Discord voice resource endpoints
+---
+
+Voice resources provide endpoints to manage voice states and retrieve voice region information.
+
+## Available Endpoints
+
+### Get Current User Voice State
+
+Get the current user's voice state in a guild.
+
+**GET** `/guilds/:guild/voice-states/@me`
+
+```typescript
+import { getCurrentUserVoiceState } from "@discordkit/client";
+
+const voiceState = await getCurrentUserVoiceState({ guild: "123456789" });
+```
+
+**Returns:** The current user's voice state in the guild.
+
+**Exports:**
+- `getCurrentUserVoiceState` - Handler function
+- `getCurrentUserVoiceStateSchema` - Valibot schema for validation
+- `getCurrentUserVoiceStateSafe` - Validated handler
+- `getCurrentUserVoiceStateProcedure` - tRPC procedure (query)
+- `getCurrentUserVoiceStateQuery` - Query helper
+
+---
+
+### Get User Voice State
+
+Get a specific user's voice state in a guild.
+
+**GET** `/guilds/:guild/voice-states/:user`
+
+```typescript
+import { getUserVoiceState } from "@discordkit/client";
+
+const voiceState = await getUserVoiceState({
+  guild: "123456789",
+  user: "987654321"
+});
+```
+
+**Returns:** The specified user's voice state in the guild.
+
+**Exports:**
+- `getUserVoiceState` - Handler function
+- `getUserVoiceStateSchema` - Valibot schema for validation
+- `getUserVoiceStateSafe` - Validated handler
+- `getUserVoiceStateProcedure` - tRPC procedure (query)
+- `getUserVoiceStateQuery` - Query helper
+
+---
+
+### List Voice Regions
+
+Get all available voice regions.
+
+**GET** `/voice/regions`
+
+```typescript
+import { listVoiceRegions } from "@discordkit/client";
+
+const regions = await listVoiceRegions();
+```
+
+**Returns:** An array of voice region objects that can be used when setting a voice or stage channel's `rtcRegion`.
+
+**Exports:**
+- `listVoiceRegions` - Handler function
+- `listVoiceRegionsSafe` - Validated handler
+- `listVoiceRegionsProcedure` - tRPC procedure (query)
+- `listVoiceRegionsQuery` - Query helper
+
+---
+
+### Modify Current User Voice State
+
+Update the current user's voice state.
+
+**PATCH** `/guilds/:guild/voice-states/@me`
+
+```typescript
+import { modifyCurrentUserVoiceState } from "@discordkit/client";
+
+await modifyCurrentUserVoiceState({
+  guild: "123456789",
+  body: {
+    channelId: "987654321",
+    suppress: false,
+    requestToSpeakTimestamp: "2024-01-01T00:00:00.000Z"
+  }
+});
+```
+
+**Returns:** `204 No Content` on success. Fires a Voice State Update Gateway event.
+
+**Caveats:**
+- `channelId` must currently point to a stage channel
+- Current user must already have joined `channelId`
+- You must have the `MUTE_MEMBERS` permission to unsuppress yourself (you can always suppress yourself)
+- You must have the `REQUEST_TO_SPEAK` permission to request to speak (you can always clear your own request)
+- You can set `requestToSpeakTimestamp` to any present or future time
+
+**Exports:**
+- `modifyCurrentUserVoiceState` - Handler function
+- `modifyCurrentUserVoiceStateSchema` - Valibot schema for validation
+- `modifyCurrentUserVoiceStateSafe` - Validated handler
+- `modifyCurrentUserVoiceStateProcedure` - tRPC procedure (mutation)
+
+---
+
+### Modify User Voice State
+
+Update another user's voice state.
+
+**PATCH** `/guilds/:guild/voice-states/:user`
+
+```typescript
+import { modifyUserVoiceState } from "@discordkit/client";
+
+await modifyUserVoiceState({
+  guild: "123456789",
+  user: "987654321",
+  body: {
+    channelId: "111111111",
+    suppress: true
+  }
+});
+```
+
+**Permissions:** Requires `MUTE_MEMBERS` permission.
+
+**Returns:** Fires a Voice State Update Gateway event.
+
+**Caveats:**
+- `channelId` must currently point to a stage channel
+- User must already have joined `channelId`
+- When unsuppressed, non-bot users will have their `requestToSpeakTimestamp` set to the current time (bot users will not)
+- When suppressed, the user will have their `requestToSpeakTimestamp` removed
+
+**Exports:**
+- `modifyUserVoiceState` - Handler function
+- `modifyUserVoiceStateSchema` - Valibot schema for validation
+- `modifyUserVoiceStateSafe` - Validated handler
+- `modifyUserVoiceStateProcedure` - tRPC procedure (mutation)
+
+## Procedure Exports
+
+All voice procedures are also exported as a namespace:
+
+```typescript
+import { voiceProcedures } from "@discordkit/client";
+
+// Access any procedure:
+voiceProcedures.getCurrentUserVoiceStateProcedure
+voiceProcedures.getUserVoiceStateProcedure
+// ... etc
+```

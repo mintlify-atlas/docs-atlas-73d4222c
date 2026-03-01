@@ -1,0 +1,114 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "DiscordKit",
+  "projectDescription": "TypeScript SDK for Discord's API with built-in support for react-query and tRPC",
+  "theme": "palm",
+  "primaryColor": "#5865F2",
+  "lightColor": "#7289DA",
+  "darkColor": "#4752C4",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/authentication",
+              "concepts/request-handlers",
+              "concepts/validation",
+              "concepts/integrations"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/react-query",
+              "guides/trpc",
+              "guides/vanilla-typescript",
+              "guides/error-handling"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": [
+              "examples/overview",
+              "examples/nextjs"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Packages",
+            "pages": [
+              "api/overview",
+              "api/client",
+              "api/core"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "api/resources/application",
+              "api/resources/channel",
+              "api/resources/guild",
+              "api/resources/user",
+              "api/resources/message",
+              "api/resources/emoji",
+              "api/resources/webhook",
+              "api/resources/invite",
+              "api/resources/sticker",
+              "api/resources/voice",
+              "api/resources/auto-moderation",
+              "api/resources/audit-log",
+              "api/resources/events",
+              "api/resources/interactions",
+              "api/resources/stage",
+              "api/resources/soundboard",
+              "api/resources/poll"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/utilities/validation",
+              "api/utilities/helpers"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Type-safe Discord API client with Valibot validation",
+    "Built-in react-query integration for data fetching",
+    "tRPC procedure builders for end-to-end type safety",
+    "Comprehensive coverage of Discord API endpoints",
+    "Organized by resource type (guilds, channels, users, etc.)",
+    "Request and response validation schemas"
+  ],
+  "publicApiSurface": [
+    "@discordkit/client - Main SDK package",
+    "@discordkit/core - Core utilities and request handling",
+    "discord.setToken() - Authentication configuration",
+    "getGuild(), getGuildQuery(), getGuildProcedure() - Guild endpoints",
+    "getUser(), getUserQuery(), getUserProcedure() - User endpoints",
+    "getChannel(), getChannelQuery(), getChannelProcedure() - Channel endpoints",
+    "createMessage(), createMessageProcedure() - Message endpoints",
+    "Schema exports (getGuildSchema, etc.) - Valibot validation schemas",
+    "Request handlers for all Discord API resources",
+    "react-query query functions (*Query exports)",
+    "tRPC procedure builders (*Procedure exports)"
+  ]
+}

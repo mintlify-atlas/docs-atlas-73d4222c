@@ -1,0 +1,286 @@
+---
+title: 'Guild Template Resource'
+description: 'API endpoints for managing Discord guild templates'
+---
+
+The Guild Template resource provides endpoints to create, retrieve, modify, and sync guild templates. Templates allow guilds to be created with pre-configured channels, roles, and settings.
+
+## Get Guild Template
+
+Returns a guild template object for the given code.
+
+```typescript
+import { getGuildTemplate } from '@discordkit/client';
+
+const template = await getGuildTemplate({
+  template: 'hgM48av5Q69A'
+});
+```
+
+**Endpoint:** `GET /guilds/templates/:template`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `template` (string) - Template code
+</Accordion>
+
+**Exports:**
+- `getGuildTemplate` - Base fetcher function
+- `getGuildTemplateSafe` - Validated version with schema checking
+- `getGuildTemplateProcedure` - tRPC-compatible query procedure
+- `getGuildTemplateQuery` - TanStack Query-compatible function
+- `getGuildTemplateSchema` - Valibot schema for validation
+
+**Returns:** `GuildTemplate` object
+
+**Source:** [getGuildTemplate.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/template/getGuildTemplate.ts)
+
+---
+
+## Create Guild from Template
+
+Create a new guild based on a template. Returns a guild object on success. Fires a Guild Create Gateway event.
+
+```typescript
+import { createGuildFromTemplate } from '@discordkit/client';
+
+const guild = await createGuildFromTemplate({
+  template: 'hgM48av5Q69A',
+  body: {
+    name: 'My New Guild',
+    icon: 'data:image/png;base64,...'
+  }
+});
+```
+
+**Endpoint:** `POST /guilds/templates/:template`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `template` (string) - Template code
+
+  **Body Parameters:**
+  - `name` (string, 2-100 chars) - Name of the guild
+  - `icon` (data URI, optional) - Base64 128x128 image for the guild icon
+</Accordion>
+
+**Exports:**
+- `createGuildFromTemplate`
+- `createGuildFromTemplateSafe`
+- `createGuildFromTemplateProcedure`
+- `createGuildFromTemplateSchema`
+
+**Returns:** `Guild` object
+
+<Warning>
+  This endpoint can be used only by bots in less than 10 guilds.
+</Warning>
+
+**Source:** [createGuildFromTemplate.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/template/createGuildFromTemplate.ts)
+
+---
+
+## Get Guild Templates
+
+Returns an array of guild template objects. Requires the `MANAGE_GUILD` permission.
+
+```typescript
+import { getGuildTemplates } from '@discordkit/client';
+
+const templates = await getGuildTemplates({
+  guild: '123456789'
+});
+```
+
+**Endpoint:** `GET /guilds/:guild/templates`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+</Accordion>
+
+**Exports:**
+- `getGuildTemplates`
+- `getGuildTemplatesSafe`
+- `getGuildTemplatesProcedure`
+- `getGuildTemplatesQuery`
+- `getGuildTemplatesSchema`
+
+**Returns:** Array of `GuildTemplate` objects
+
+**Required Permissions:** `MANAGE_GUILD`
+
+**Source:** [getGuildTemplates.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/template/getGuildTemplates.ts)
+
+---
+
+## Create Guild Template
+
+Creates a template for the guild. Requires the `MANAGE_GUILD` permission. Returns the created guild template object on success.
+
+```typescript
+import { createGuildTemplate } from '@discordkit/client';
+
+const template = await createGuildTemplate({
+  guild: '123456789',
+  body: {
+    name: 'My Template',
+    description: 'A template for my community server'
+  }
+});
+```
+
+**Endpoint:** `POST /guilds/:guild/templates`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+
+  **Body Parameters:**
+  - `name` (string, 1-100 chars) - Name of the template
+  - `description` (string, 0-120 chars, optional) - Description for the template
+</Accordion>
+
+**Exports:**
+- `createGuildTemplate`
+- `createGuildTemplateSafe`
+- `createGuildTemplateProcedure`
+- `createGuildTemplateSchema`
+
+**Returns:** `GuildTemplate` object
+
+**Required Permissions:** `MANAGE_GUILD`
+
+**Source:** [createGuildTemplate.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/template/createGuildTemplate.ts)
+
+---
+
+## Sync Guild Template
+
+Syncs the template to the guild's current state. Requires the `MANAGE_GUILD` permission. Returns the guild template object on success.
+
+```typescript
+import { syncGuildTemplate } from '@discordkit/client';
+
+const synced = await syncGuildTemplate({
+  guild: '123456789',
+  template: 'hgM48av5Q69A'
+});
+```
+
+**Endpoint:** `PUT /guilds/:guild/templates/:template`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+  - `template` (string) - Template code
+</Accordion>
+
+**Exports:**
+- `syncGuildTemplate`
+- `syncGuildTemplateSafe`
+- `syncGuildTemplateProcedure`
+- `syncGuildTemplateSchema`
+
+**Returns:** `GuildTemplate` object
+
+**Required Permissions:** `MANAGE_GUILD`
+
+**Source:** [syncGuildTemplate.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/template/syncGuildTemplate.ts)
+
+---
+
+## Modify Guild Template
+
+Modifies the template's metadata. Requires the `MANAGE_GUILD` permission. Returns the guild template object on success.
+
+```typescript
+import { modifyGuildTemplate } from '@discordkit/client';
+
+const modified = await modifyGuildTemplate({
+  guild: '123456789',
+  template: 'hgM48av5Q69A',
+  body: {
+    name: 'Updated Template Name',
+    description: 'Updated description'
+  }
+});
+```
+
+**Endpoint:** `PATCH /guilds/:guild/templates/:template`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+  - `template` (string) - Template code
+
+  **Body Parameters (all optional):**
+  - `name` (string, 1-100 chars) - Name of the template
+  - `description` (string, 1-120 chars) - Description for the template
+</Accordion>
+
+**Exports:**
+- `modifyGuildTemplate`
+- `modifyGuildTemplateSafe`
+- `modifyGuildTemplateProcedure`
+- `modifyGuildTemplateSchema`
+
+**Returns:** `GuildTemplate` object
+
+**Required Permissions:** `MANAGE_GUILD`
+
+**Source:** [modifyGuildTemplate.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/template/modifyGuildTemplate.ts)
+
+---
+
+## Delete Guild Template
+
+Deletes the template. Requires the `MANAGE_GUILD` permission. Returns the deleted guild template object on success.
+
+```typescript
+import { deleteGuildTemplate } from '@discordkit/client';
+
+const deleted = await deleteGuildTemplate({
+  guild: '123456789',
+  template: 'hgM48av5Q69A'
+});
+```
+
+**Endpoint:** `DELETE /guilds/:guild/templates/:template`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `guild` (snowflake) - Guild ID
+  - `template` (string) - Template code
+</Accordion>
+
+**Exports:**
+- `deleteGuildTemplate`
+- `deleteGuildTemplateSafe`
+- `deleteGuildTemplateProcedure`
+- `deleteGuildTemplateSchema`
+
+**Returns:** `GuildTemplate` object
+
+**Required Permissions:** `MANAGE_GUILD`
+
+**Source:** [deleteGuildTemplate.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/template/deleteGuildTemplate.ts)
+
+---
+
+## GuildTemplate Object
+
+The `GuildTemplate` object represents a code that can be used to create a guild.
+
+**Key Fields:**
+- `code` (string) - Template code (unique ID)
+- `name` (string) - Template name
+- `description` (string) - Template description
+- `usageCount` (integer) - Number of times this template has been used
+- `creatorId` (snowflake) - ID of the user who created the template
+- `creator` (User) - User object of the creator
+- `createdAt` (ISO8601 timestamp) - When the template was created
+- `updatedAt` (ISO8601 timestamp) - When the template was last synced
+- `sourceGuildId` (snowflake) - ID of the guild this template is based on
+- `serializedSourceGuild` (partial Guild) - Partial guild object containing the template data
+- `isDirty` (boolean) - Whether the template has unsynced changes

@@ -1,0 +1,72 @@
+---
+title: 'SKU Resource'
+description: 'API endpoints for managing Discord SKUs (Stock Keeping Units)'
+---
+
+The SKU resource provides endpoints to retrieve information about application SKUs. SKUs represent premium offerings like subscriptions or one-time purchases.
+
+## List SKUs
+
+Returns all SKUs for a given application.
+
+```typescript
+import { listSKUs } from '@discordkit/client';
+
+const skus = await listSKUs({
+  application: '123456789'
+});
+```
+
+**Endpoint:** `GET /applications/:application/skus`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+</Accordion>
+
+**Exports:**
+- `listSKUs` - Base fetcher function
+- `listSKUsSafe` - Validated version with schema checking
+- `listSKUsProcedure` - tRPC-compatible query procedure
+- `listSKUsQuery` - TanStack Query-compatible function
+- `listSKUsSchema` - Valibot schema for validation
+
+**Returns:** Array of `SKU` objects
+
+<Note>
+  Because of how Discord's SKU and subscription systems work, you will see two SKUs for your subscription offering. For integration and testing entitlements for Subscriptions, you should use the SKU with `type: 5`.
+</Note>
+
+**Source:** [listSKUs.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/sku/listSKUs.ts)
+
+---
+
+## SKU Object
+
+The `SKU` object represents a premium offering in your application.
+
+**Key Fields:**
+- `id` (snowflake) - SKU ID
+- `type` (integer) - Type of SKU
+- `applicationId` (snowflake) - ID of the parent application
+- `name` (string) - Customer-facing name of the SKU
+- `slug` (string) - System-generated URL slug based on the SKU's name
+- `flags` (integer) - SKU flags combined as a bitfield
+
+**SKU Types:**
+- `1` - Durable (one-time purchase)
+- `2` - Consumable (can be purchased multiple times)
+- `3` - Subscription
+- `5` - Subscription Group (used for subscriptions)
+
+**Example SKU:**
+```json
+{
+  "id": "1234567890123456789",
+  "type": 5,
+  "application_id": "9876543210987654321",
+  "name": "Premium Subscription",
+  "slug": "premium-subscription",
+  "flags": 128
+}
+```

@@ -1,0 +1,376 @@
+---
+title: 'Lobby Resource'
+description: 'API endpoints for managing Discord lobbies for multiplayer games'
+---
+
+The Lobby resource provides endpoints to create and manage game lobbies. Lobbies allow players to gather before starting a multiplayer game session.
+
+## Get Lobby
+
+Returns a lobby object for the specified lobby id, if it exists.
+
+```typescript
+import { getLobby } from '@discordkit/client';
+
+const lobby = await getLobby({
+  lobby: '123456789'
+});
+```
+
+**Endpoint:** `GET /lobbies/:lobby`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `lobby` (snowflake) - Lobby ID
+</Accordion>
+
+**Exports:**
+- `getLobby` - Base fetcher function
+- `getLobbySafe` - Validated version with schema checking
+- `getLobbyProcedure` - tRPC-compatible query procedure
+- `getLobbyQuery` - TanStack Query-compatible function
+- `getLobbySchema` - Valibot schema for validation
+
+**Returns:** `Lobby` object
+
+**Source:** [getLobby.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/lobby/getLobby.ts)
+
+---
+
+## Create Lobby
+
+Creates a new lobby, adding any of the specified members to it, if provided.
+
+```typescript
+import { createLobby } from '@discordkit/client';
+
+const lobby = await createLobby({
+  body: {
+    metadata: {
+      gameMode: 'battle-royale',
+      map: 'desert'
+    },
+    members: [
+      {
+        id: '987654321',
+        metadata: { role: 'leader' },
+        flags: 1
+      }
+    ],
+    idleTimeoutSeconds: 300
+  }
+});
+```
+
+**Endpoint:** `POST /lobbies`
+
+<Accordion title="Parameters">
+  **Body Parameters (all optional):**
+  - `metadata` (object) - Dictionary of string key/value pairs (max 1000 entries)
+  - `members` (array, max 25) - Array of users to add to the lobby
+    - `id` (snowflake) - Discord user ID of the user to add
+    - `metadata` (object) - Dictionary of string key/value pairs (max 1000 entries)
+    - `flags` (integer) - Lobby member flags combined as a bitfield
+  - `idleTimeoutSeconds` (integer, 5-604800) - Seconds to wait before shutting down after idle (default: 300, max: 7 days)
+</Accordion>
+
+**Exports:**
+- `createLobby`
+- `createLobbySafe`
+- `createLobbyProcedure`
+- `createLobbySchema`
+
+**Returns:** `Lobby` object
+
+<Note>
+  Discord Social SDK clients will not be able to join or leave a lobby created using this API, such as `Client::CreateOrJoinLobby`. See Managing Lobbies for more information.
+</Note>
+
+**Source:** [createLobby.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/lobby/createLobby.ts)
+
+---
+
+## Modify Lobby
+
+Modifies the specified lobby with new values, if provided.
+
+```typescript
+import { modifyLobby } from '@discordkit/client';
+
+const updated = await modifyLobby({
+  lobby: '123456789',
+  body: {
+    metadata: {
+      gameMode: 'team-deathmatch',
+      maxPlayers: '8'
+    },
+    idleTimeoutSeconds: 600
+  }
+});
+```
+
+**Endpoint:** `PATCH /lobbies/:lobby`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `lobby` (snowflake) - Lobby ID
+
+  **Body Parameters (all optional):**
+  - `metadata` (object) - Dictionary of string key/value pairs (max 1000 entries)
+  - `members` (array, max 25) - Array of users to replace the lobby members with (removes members not in this list)
+    - `id` (snowflake) - Discord user ID
+    - `metadata` (object) - Dictionary of string key/value pairs (max 1000 entries)
+    - `flags` (integer) - Lobby member flags combined as a bitfield
+  - `idleTimeoutSeconds` (integer, 5-604800) - Seconds to wait before shutting down after idle
+</Accordion>
+
+**Exports:**
+- `modifyLobby`
+- `modifyLobbySafe`
+- `modifyLobbyProcedure`
+- `modifyLobbySchema`
+
+**Returns:** `Lobby` object
+
+**Source:** [modifyLobby.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/lobby/modifyLobby.ts)
+
+---
+
+## Delete Lobby
+
+Deletes the specified lobby if it exists. It is safe to call even if the lobby is already deleted.
+
+```typescript
+import { deleteLobby } from '@discordkit/client';
+
+await deleteLobby({
+  lobby: '123456789'
+});
+```
+
+**Endpoint:** `DELETE /lobbies/:lobby`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `lobby` (snowflake) - Lobby ID
+</Accordion>
+
+**Exports:**
+- `deleteLobby`
+- `deleteLobbySafe`
+- `deleteLobbyProcedure`
+- `deleteLobbySchema`
+
+**Returns:** Nothing
+
+**Source:** [deleteLobby.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/lobby/deleteLobby.ts)
+
+---
+
+## Add Member to Lobby
+
+Adds the provided user to the specified lobby. If called when the user is already a member of the lobby, will update fields such as metadata on that user instead.
+
+```typescript
+import { addMemberToLobby } from '@discordkit/client';
+
+const member = await addMemberToLobby({
+  lobby: '123456789',
+  user: '987654321',
+  body: {
+    metadata: { role: 'player' },
+    flags: 0
+  }
+});
+```
+
+**Endpoint:** `PUT /lobbies/:lobby/members/:user`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `lobby` (snowflake) - Lobby ID
+  - `user` (snowflake) - User ID
+
+  **Body Parameters (all optional):**
+  - `metadata` (object) - Dictionary of string key/value pairs (max 1000 entries)
+  - `flags` (integer) - Lobby member flags combined as a bitfield
+</Accordion>
+
+**Exports:**
+- `addMemberToLobby`
+- `addMemberToLobbySafe`
+- `addMemberToLobbyProcedure`
+- `addMemberToLobbySchema`
+
+**Returns:** `LobbyMember` object
+
+**Source:** [addMemberToLobby.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/lobby/addMemberToLobby.ts)
+
+---
+
+## Remove Member from Lobby
+
+Removes the provided user from the specified lobby. It is safe to call this even if the user is no longer a member of the lobby, but will fail if the lobby does not exist.
+
+```typescript
+import { removeMemberFromLobby } from '@discordkit/client';
+
+await removeMemberFromLobby({
+  lobby: '123456789',
+  user: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /lobbies/:lobby/members/:user`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `lobby` (snowflake) - Lobby ID
+  - `user` (snowflake) - User ID
+</Accordion>
+
+**Exports:**
+- `removeMemberFromLobby`
+- `removeMemberFromLobbySafe`
+- `removeMemberFromLobbyProcedure`
+- `removeMemberFromLobbySchema`
+
+**Returns:** Nothing
+
+**Source:** [removeMemberFromLobby.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/lobby/removeMemberFromLobby.ts)
+
+---
+
+## Leave Lobby
+
+Removes the current user from the specified lobby. It is safe to call this even if the user is no longer a member of the lobby, but will fail if the lobby does not exist.
+
+```typescript
+import { leaveLobby } from '@discordkit/client';
+
+await leaveLobby({
+  lobby: '123456789'
+});
+```
+
+**Endpoint:** `DELETE /lobbies/:lobby/members/@me`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `lobby` (snowflake) - Lobby ID
+</Accordion>
+
+**Exports:**
+- `leaveLobby`
+- `leaveLobbySafe`
+- `leaveLobbyProcedure`
+- `leaveLobbySchema`
+
+**Returns:** Nothing
+
+**Authorization:** Uses `Bearer` token for authorization
+
+**Source:** [leaveLobby.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/lobby/leaveLobby.ts)
+
+---
+
+## Link Channel to Lobby
+
+Links an existing text channel to a lobby. See Linked Channels for more information.
+
+```typescript
+import { linkChannelToLobby } from '@discordkit/client';
+
+const lobby = await linkChannelToLobby({
+  lobby: '123456789',
+  body: {
+    channelId: '987654321'
+  }
+});
+```
+
+**Endpoint:** `PATCH /lobbies/:lobby/channel-linking`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `lobby` (snowflake) - Lobby ID
+
+  **Body Parameters (all optional):**
+  - `channelId` (snowflake) - ID of the channel to link to the lobby (if not provided, will unlink any currently linked channels)
+</Accordion>
+
+**Exports:**
+- `linkChannelToLobby`
+- `linkChannelToLobbySafe`
+- `linkChannelToLobbyProcedure`
+- `linkChannelToLobbySchema`
+
+**Returns:** `Lobby` object with a linked channel
+
+**Authorization:** Uses `Bearer` token for authorization. User must be a lobby member with `CanLinkLobby` lobby member flag.
+
+**Source:** [linkChannelToLobby.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/lobby/linkChannelToLobby.ts)
+
+---
+
+## Unlink Channel from Lobby
+
+Unlinks any currently linked channels from the specified lobby.
+
+```typescript
+import { unlinkChannelFromLobby } from '@discordkit/client';
+
+const lobby = await unlinkChannelFromLobby({
+  lobby: '123456789'
+});
+```
+
+**Endpoint:** `PATCH /lobbies/:lobby/channel-linking`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `lobby` (snowflake) - Lobby ID
+</Accordion>
+
+**Exports:**
+- `unlinkChannelFromLobby`
+- `unlinkChannelFromLobbySafe`
+- `unlinkChannelFromLobbyProcedure`
+- `unlinkChannelFromLobbySchema`
+
+**Returns:** `Lobby` object without a linked channel
+
+**Authorization:** Uses `Bearer` token for authorization. User must be a lobby member with `CanLinkLobby` lobby member flag.
+
+<Note>
+  Send a request to this endpoint with an empty body to unlink any currently linked channels from the specified lobby.
+</Note>
+
+**Source:** [unlinkChannelFromLobby.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/lobby/unlinkChannelFromLobby.ts)
+
+---
+
+## Lobby Object
+
+The `Lobby` object represents a game lobby that players can join.
+
+**Key Fields:**
+- `id` (snowflake) - Lobby ID
+- `applicationId` (snowflake) - Application ID that owns the lobby
+- `metadata` (object) - Lobby metadata key/value pairs
+- `members` (array) - Array of lobby member objects
+- `linkedChannel` (object, optional) - Linked text channel information
+- `idleTimeoutSeconds` (integer) - Seconds before the lobby shuts down when idle
+- `createdAt` (ISO8601 timestamp) - When the lobby was created
+
+## LobbyMember Object
+
+The `LobbyMember` object represents a user in a lobby.
+
+**Key Fields:**
+- `userId` (snowflake) - User ID
+- `metadata` (object) - Member metadata key/value pairs
+- `flags` (integer) - Lobby member flags combined as a bitfield
+
+**Lobby Member Flags:**
+- `1 << 0` (1) - CanLinkLobby - Member can link channels to the lobby

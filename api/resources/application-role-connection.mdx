@@ -1,0 +1,100 @@
+---
+title: 'Application Role Connection Resource'
+description: 'API endpoints for managing Discord Application Role Connection metadata'
+---
+
+The Application Role Connection resource provides endpoints to manage metadata records for application role connections. These metadata records define how external platform data can be used in Discord's Linked Roles feature.
+
+## Get Application Role Connection Metadata Records
+
+Returns a list of application role connection metadata objects for the given application.
+
+```typescript
+import { getApplicationRoleConnectionMetadataRecords } from '@discordkit/client';
+
+const metadata = await getApplicationRoleConnectionMetadataRecords({
+  application: '123456789'
+});
+```
+
+**Endpoint:** `GET /applications/:application/role-connections/metadata`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+</Accordion>
+
+**Exports:**
+- `getApplicationRoleConnectionMetadataRecords` - Base fetcher function
+- `getApplicationRoleConnectionMetadataRecordsSafe` - Validated version with schema checking
+- `getApplicationRoleConnectionMetadataRecordsProcedure` - tRPC-compatible query procedure
+- `getApplicationRoleConnectionMetadataRecordsQuery` - TanStack Query-compatible function
+- `getApplicationRoleConnectionMetadataRecordsSchema` - Valibot schema for validation
+
+**Returns:** Array of `ApplicationRoleConnectionMetadata` objects
+
+**Source:** [getApplicationRoleConnectionMetadataRecords.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/application-role-connection/getApplicationRoleConnectionMetadataRecords.ts)
+
+---
+
+## Update Application Role Connection Metadata Records
+
+Updates and returns a list of application role connection metadata objects for the given application.
+
+```typescript
+import { updateApplicationRoleConnectionMetadataRecords } from '@discordkit/client';
+
+const updated = await updateApplicationRoleConnectionMetadataRecords({
+  application: '123456789',
+  body: {
+    records: [
+      {
+        type: 2,
+        key: 'level',
+        name: 'Level',
+        description: 'User level on platform'
+      },
+      {
+        type: 7,
+        key: 'achievements',
+        name: 'Achievements',
+        description: 'Total achievements earned'
+      }
+    ]
+  }
+});
+```
+
+**Endpoint:** `PUT /applications/:application/role-connections/metadata`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+
+  **Body Parameters:**
+  - `records` (array) - Array of application role connection metadata objects to set
+</Accordion>
+
+**Exports:**
+- `updateApplicationRoleConnectionMetadataRecords`
+- `updateApplicationRoleConnectionMetadataRecordsSafe`
+- `updateApplicationRoleConnectionMetadataRecordsProcedure`
+- `updateApplicationRoleConnectionMetadataRecordsSchema`
+
+**Returns:** Array of `ApplicationRoleConnectionMetadata` objects
+
+**Source:** [updateApplicationRoleConnectionMetadataRecords.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/application-role-connection/updateApplicationRoleConnectionMetadataRecords.ts)
+
+---
+
+## ApplicationRoleConnectionMetadata Object
+
+The `ApplicationRoleConnectionMetadata` object defines metadata that can be used in role requirements.
+
+**Key Fields:**
+- `type` (integer) - Type of metadata value (1-8)
+- `key` (string) - Dictionary key for the metadata field
+- `name` (string) - Name of the metadata field
+- `nameLocalizations` (object) - Translations of the name
+- `description` (string) - Description of the metadata field
+- `descriptionLocalizations` (object) - Translations of the description

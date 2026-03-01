@@ -73,6 +73,7 @@
             "group": "Resources",
             "pages": [
               "api/resources/application",
+              "api/resources/application-role-connection",
               "api/resources/channel",
               "api/resources/guild",
               "api/resources/user",
@@ -88,7 +89,13 @@
               "api/resources/interactions",
               "api/resources/stage",
               "api/resources/soundboard",
-              "api/resources/poll"
+              "api/resources/poll",
+              "api/resources/entitlements",
+              "api/resources/sku",
+              "api/resources/subscription",
+              "api/resources/template",
+              "api/resources/lobby",
+              "api/resources/images"
             ]
           },
           {

@@ -1,0 +1,118 @@
+---
+title: 'SKU Subscription Resource'
+description: 'API endpoints for managing Discord SKU subscriptions'
+---
+
+The SKU Subscription resource provides endpoints to retrieve information about active subscriptions for a given SKU.
+
+## Get SKU Subscription
+
+Get a subscription by its ID. Returns a subscription object.
+
+```typescript
+import { getSKUSubscription } from '@discordkit/client';
+
+const subscription = await getSKUSubscription({
+  sku: '123456789',
+  subscription: '987654321'
+});
+```
+
+**Endpoint:** `GET /skus/:sku/subscriptions/:subscription`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `sku` (snowflake) - SKU ID
+  - `subscription` (snowflake) - Subscription ID
+</Accordion>
+
+**Exports:**
+- `getSKUSubscription` - Base fetcher function
+- `getSKUSubscriptionSafe` - Validated version with schema checking
+- `getSKUSubscriptionProcedure` - tRPC-compatible query procedure
+- `getSKUSubscriptionQuery` - TanStack Query-compatible function
+- `getSKUSubscriptionSchema` - Valibot schema for validation
+
+**Returns:** `Subscription` object
+
+**Source:** [getSKUSubscription.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/subscription/getSKUSubscription.ts)
+
+---
+
+## List SKU Subscriptions
+
+Returns all subscriptions containing the SKU, filtered by user. Returns a list of subscription objects.
+
+```typescript
+import { listSKUSubscriptions } from '@discordkit/client';
+
+const subscriptions = await listSKUSubscriptions({
+  sku: '123456789',
+  params: {
+    userId: '987654321',
+    limit: 50,
+    after: '0'
+  }
+});
+```
+
+**Endpoint:** `GET /skus/:sku/subscriptions`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `sku` (snowflake) - SKU ID
+
+  **Query Parameters (all optional):**
+  - `before` (snowflake) - List subscriptions before this ID
+  - `after` (snowflake) - List subscriptions after this ID
+  - `limit` (integer, 1-100) - Number of results to return (default: 50)
+  - `userId` (snowflake) - User ID for which to return subscriptions (required except for OAuth queries)
+</Accordion>
+
+**Exports:**
+- `listSKUSubscriptions`
+- `listSKUSubscriptionsSafe`
+- `listSKUSubscriptionsProcedure`
+- `listSKUSubscriptionsQuery`
+- `listSKUSubscriptionsSchema`
+
+**Returns:** Array of `Subscription` objects
+
+**Source:** [listSKUSubscriptions.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/subscription/listSKUSubscriptions.ts)
+
+---
+
+## Subscription Object
+
+The `Subscription` object represents an active subscription to a SKU.
+
+**Key Fields:**
+- `id` (snowflake) - Subscription ID
+- `userId` (snowflake) - ID of the user who purchased the subscription
+- `skuIds` (array) - List of SKU IDs included in the subscription
+- `entitlementIds` (array) - List of entitlement IDs granted by this subscription
+- `currentPeriodStart` (ISO8601 timestamp) - Start of the current subscription period
+- `currentPeriodEnd` (ISO8601 timestamp) - End of the current subscription period
+- `status` (integer) - Status of the subscription
+- `canceledAt` (ISO8601 timestamp) - When the subscription was canceled
+- `country` (string) - Country code of the payment source
+
+**Subscription Status:**
+- `0` - Active
+- `1` - Ending (will not renew)
+- `2` - Inactive
+
+**Example Subscription:**
+```json
+{
+  "id": "1234567890123456789",
+  "user_id": "9876543210987654321",
+  "sku_ids": ["1111111111111111111"],
+  "entitlement_ids": ["2222222222222222222"],
+  "current_period_start": "2024-01-01T00:00:00.000000+00:00",
+  "current_period_end": "2024-02-01T00:00:00.000000+00:00",
+  "status": 0,
+  "canceled_at": null,
+  "country": "US"
+}
+```

@@ -1,0 +1,214 @@
+---
+title: 'Entitlements Resource'
+description: 'API endpoints for managing Discord entitlements and SKU access'
+---
+
+The Entitlements resource provides endpoints to manage user and guild entitlements for premium SKUs, including listing, retrieving, and managing test entitlements.
+
+## List Entitlements
+
+Returns all entitlements for a given app, active and expired.
+
+```typescript
+import { listEntitlements } from '@discordkit/client';
+
+const entitlements = await listEntitlements({
+  application: '123456789',
+  params: {
+    userId: '987654321',
+    limit: 100,
+    excludeEnded: false
+  }
+});
+```
+
+**Endpoint:** `GET /applications/:application/entitlements`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+
+  **Query Parameters (all optional):**
+  - `userId` (snowflake) - User ID to look up entitlements for
+  - `skuIds` (string) - Comma-separated list of SKU IDs to check entitlements for
+  - `before` (snowflake) - Retrieve entitlements before this entitlement ID
+  - `after` (snowflake) - Retrieve entitlements after this entitlement ID
+  - `limit` (integer, 1-100) - Number of entitlements to return (default: 100)
+  - `guildId` (snowflake) - Guild ID to look up entitlements for
+  - `excludeEnded` (boolean) - Whether to omit ended entitlements (default: false)
+  - `excludeDeleted` (boolean) - Whether to omit deleted entitlements (default: true)
+</Accordion>
+
+**Exports:**
+- `listEntitlements` - Base fetcher function
+- `listEntitlementsSafe` - Validated version with schema checking
+- `listEntitlementsProcedure` - tRPC-compatible query procedure
+- `listEntitlementsQuery` - TanStack Query-compatible function
+- `listEntitlementsSchema` - Valibot schema for validation
+
+**Returns:** Array of `Entitlement` objects
+
+**Source:** [listEntitlements.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/entitlements/listEntitlements.ts)
+
+---
+
+## Get Entitlement
+
+Returns an entitlement by ID.
+
+```typescript
+import { getEntitlement } from '@discordkit/client';
+
+const entitlement = await getEntitlement({
+  application: '123456789',
+  entitlement: '987654321'
+});
+```
+
+**Endpoint:** `GET /applications/:application/entitlements/:entitlement`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+  - `entitlement` (snowflake) - Entitlement ID
+</Accordion>
+
+**Exports:**
+- `getEntitlement`
+- `getEntitlementSafe`
+- `getEntitlementProcedure`
+- `getEntitlementQuery`
+- `getEntitlementSchema`
+
+**Returns:** `Entitlement` object
+
+**Source:** [getEntitlement.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/entitlements/getEntitlement.ts)
+
+---
+
+## Consume Entitlement
+
+For One-Time Purchase consumable SKUs, marks a given entitlement for the user as consumed. The entitlement will have `consumed: true` when using List Entitlements.
+
+```typescript
+import { consumeEntitlement } from '@discordkit/client';
+
+await consumeEntitlement({
+  application: '123456789',
+  entitlement: '987654321'
+});
+```
+
+**Endpoint:** `POST /applications/:application/entitlements/:entitlement/consume`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+  - `entitlement` (snowflake) - Entitlement ID to consume
+</Accordion>
+
+**Exports:**
+- `consumeEntitlement`
+- `consumeEntitlementSafe`
+- `consumeEntitlementProcedure`
+- `consumeEntitlementSchema`
+
+**Returns:** `204 No Content`
+
+**Source:** [consumeEntitlement.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/entitlements/consumeEntitlement.ts)
+
+---
+
+## Create Test Entitlement
+
+Creates a test entitlement to a given SKU for a given guild or user. Discord will act as though that user or guild has entitlement to your premium offering.
+
+```typescript
+import { createTestEntitlement } from '@discordkit/client';
+
+const testEntitlement = await createTestEntitlement({
+  application: '123456789',
+  params: {
+    skuId: '111111111',
+    ownerId: '987654321',
+    ownerType: 2 // 1 for guild, 2 for user
+  }
+});
+```
+
+**Endpoint:** `POST /applications/:application/entitlements`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+
+  **Query Parameters (all optional):**
+  - `skuId` (snowflake) - ID of the SKU to grant the entitlement to
+  - `ownerId` (snowflake) - ID of the guild or user to grant the entitlement to
+  - `ownerType` (integer) - `1` for a guild subscription, `2` for a user subscription
+</Accordion>
+
+**Exports:**
+- `createTestEntitlement`
+- `createTestEntitlementSafe`
+- `createTestEntitlementProcedure`
+- `createTestEntitlementSchema`
+
+**Returns:** Partial `Entitlement` object (without `subscription_id`, `starts_at`, or `ends_at`)
+
+<Note>
+  This endpoint returns a partial entitlement object. It will not contain `subscription_id`, `starts_at`, or `ends_at`, as it's valid in perpetuity. After creating a test entitlement, you'll need to reload your Discord client.
+</Note>
+
+**Source:** [createTestEntitlement.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/entitlements/createTestEntitlement.ts)
+
+---
+
+## Delete Test Entitlement
+
+Deletes a currently-active test entitlement. Discord will act as though that user or guild no longer has entitlement to your premium offering.
+
+```typescript
+import { deleteTestEntitlement } from '@discordkit/client';
+
+await deleteTestEntitlement({
+  application: '123456789',
+  entitlement: '987654321'
+});
+```
+
+**Endpoint:** `DELETE /applications/:application/entitlements/:entitlement`
+
+<Accordion title="Parameters">
+  **Path Parameters:**
+  - `application` (snowflake) - Application ID
+  - `entitlement` (snowflake) - Test entitlement ID to delete
+</Accordion>
+
+**Exports:**
+- `deleteTestEntitlement`
+- `deleteTestEntitlementSafe`
+- `deleteTestEntitlementProcedure`
+- `deleteTestEntitlementSchema`
+
+**Returns:** `204 No Content`
+
+**Source:** [deleteTestEntitlement.ts](https://github.com/discordkit/discordkit/blob/main/packages/client/src/entitlements/deleteTestEntitlement.ts)
+
+---
+
+## Entitlement Object
+
+The `Entitlement` object represents a user's or guild's access to a premium SKU.
+
+**Key Fields:**
+- `id` (snowflake) - Entitlement ID
+- `skuId` (snowflake) - ID of the SKU
+- `applicationId` (snowflake) - ID of the parent application
+- `userId` (snowflake) - ID of the user that owns the entitlement
+- `guildId` (snowflake) - ID of the guild that owns the entitlement
+- `type` (integer) - Type of entitlement
+- `deleted` (boolean) - Whether the entitlement has been deleted
+- `startsAt` (ISO8601 timestamp) - Start date at which the entitlement is valid
+- `endsAt` (ISO8601 timestamp) - Date at which the entitlement is no longer valid
+- `consumed` (boolean) - For consumable SKUs, whether the entitlement has been consumed

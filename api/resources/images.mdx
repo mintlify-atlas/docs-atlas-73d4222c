@@ -1,0 +1,550 @@
+---
+title: CDN Images
+description: Helper functions for generating Discord CDN image URLs
+---
+
+DiscordKit provides helper functions to generate properly formatted Discord CDN URLs for various asset types. These helpers handle URL construction, format selection, and size parameters automatically.
+
+## Overview
+
+All image helpers generate URLs pointing to Discord's CDN (`https://cdn.discordapp.com`). They support multiple image formats and size options, making it easy to retrieve optimized assets for your application.
+
+### Common Parameters
+
+Most image helpers accept the following optional parameters:
+
+- **format**: The image format (`png`, `jpg`, `webp`, or `gif` where supported)
+  - Defaults to `png` if not specified
+  - Not all assets support all formats (see individual functions)
+- **params.size**: The desired image size in pixels
+  - Must be one of: `16`, `32`, `64`, `128`, `256`, `512`, `1024`, `2048`, `4096`
+  - Discord will return the closest available size
+
+## User Assets
+
+### userAvatar
+
+Generates a CDN URL for a user's avatar.
+
+```typescript
+import { userAvatar } from '@discordkit/client';
+
+const url = userAvatar({
+  user: '123456789012345678',
+  avatar: 'a_1234567890abcdef',
+  format: 'png',
+  params: { size: 256 }
+});
+// https://cdn.discordapp.com/avatars/123456789012345678/a_1234567890abcdef.png?size=256
+```
+
+**Parameters:**
+- `user` (string): The user's snowflake ID
+- `avatar` (string): The avatar hash from the user object
+- `format` (optional): `png`, `jpg`, `webp`, or `gif`
+- `params.size` (optional): Image size in pixels
+
+### userBanner
+
+Generates a CDN URL for a user's profile banner.
+
+```typescript
+import { userBanner } from '@discordkit/client';
+
+const url = userBanner({
+  user: '123456789012345678',
+  banner: 'a_abcdef1234567890',
+  format: 'webp',
+  params: { size: 512 }
+});
+```
+
+**Parameters:**
+- `user` (string): The user's snowflake ID
+- `banner` (string): The banner hash from the user object
+- `format` (optional): `png`, `jpg`, `webp`, or `gif`
+- `params.size` (optional): Image size in pixels
+
+### userAvatarDecoration
+
+Generates a CDN URL for a user's avatar decoration.
+
+```typescript
+import { userAvatarDecoration } from '@discordkit/client';
+
+const url = userAvatarDecoration({
+  user: '123456789012345678',
+  decoration: 'a_decoration_hash',
+  params: { size: 128 }
+});
+```
+
+**Parameters:**
+- `user` (string): The user's snowflake ID
+- `decoration` (string): The avatar decoration hash
+- `params.size` (optional): Image size in pixels
+
+**Note:** Avatar decorations are always PNG format.
+
+### defaultUserAvatar
+
+Generates a CDN URL for Discord's default user avatars.
+
+```typescript
+import { defaultUserAvatar } from '@discordkit/client';
+
+const url = defaultUserAvatar({
+  index: '0'
+});
+// https://cdn.discordapp.com/embed/avatars/0.png
+```
+
+**Parameters:**
+- `index` (string): The default avatar index (typically calculated from the user's discriminator)
+
+**Note:** Default avatars are always PNG format and don't support size parameters.
+
+## Guild Assets
+
+### guildIcon
+
+Generates a CDN URL for a guild's icon.
+
+```typescript
+import { guildIcon } from '@discordkit/client';
+
+const url = guildIcon({
+  guild: '123456789012345678',
+  icon: 'a_guildicon1234',
+  format: 'webp',
+  params: { size: 256 }
+});
+```
+
+**Parameters:**
+- `guild` (string): The guild's snowflake ID
+- `icon` (string): The icon hash from the guild object
+- `format` (optional): `png`, `jpg`, `webp`, or `gif`
+- `params.size` (optional): Image size in pixels
+
+### guildBanner
+
+Generates a CDN URL for a guild's banner.
+
+```typescript
+import { guildBanner } from '@discordkit/client';
+
+const url = guildBanner({
+  guild: '123456789012345678',
+  banner: 'banner_hash_1234',
+  format: 'png',
+  params: { size: 1024 }
+});
+```
+
+**Parameters:**
+- `guild` (string): The guild's snowflake ID
+- `banner` (string): The banner hash from the guild object
+- `format` (optional): `png`, `jpg`, `webp`, or `gif`
+- `params.size` (optional): Image size in pixels
+
+### guildSplash
+
+Generates a CDN URL for a guild's invite splash image.
+
+```typescript
+import { guildSplash } from '@discordkit/client';
+
+const url = guildSplash({
+  guild: '123456789012345678',
+  splash: 'splash_hash_1234',
+  format: 'webp',
+  params: { size: 512 }
+});
+```
+
+**Parameters:**
+- `guild` (string): The guild's snowflake ID
+- `splash` (string): The splash hash from the guild object
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+### guildDiscoverySplash
+
+Generates a CDN URL for a guild's discovery splash image.
+
+```typescript
+import { guildDiscoverySplash } from '@discordkit/client';
+
+const url = guildDiscoverySplash({
+  guild: '123456789012345678',
+  splash: 'discovery_splash_1234',
+  format: 'png',
+  params: { size: 512 }
+});
+```
+
+**Parameters:**
+- `guild` (string): The guild's snowflake ID
+- `splash` (string): The discovery splash hash from the guild object
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+### guildScheduledEventCover
+
+Generates a CDN URL for a scheduled event's cover image.
+
+```typescript
+import { guildScheduledEventCover } from '@discordkit/client';
+
+const url = guildScheduledEventCover({
+  event: '123456789012345678',
+  cover: 'event_cover_hash',
+  format: 'webp',
+  params: { size: 1024 }
+});
+```
+
+**Parameters:**
+- `event` (string): The event's snowflake ID
+- `cover` (string): The cover image hash from the event object
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+## Guild Member Assets
+
+### guildMemberAvatar
+
+Generates a CDN URL for a guild member's server-specific avatar.
+
+```typescript
+import { guildMemberAvatar } from '@discordkit/client';
+
+const url = guildMemberAvatar({
+  guild: '123456789012345678',
+  user: '987654321098765432',
+  avatar: 'guild_avatar_hash',
+  format: 'png',
+  params: { size: 128 }
+});
+```
+
+**Parameters:**
+- `guild` (string): The guild's snowflake ID
+- `user` (string): The user's snowflake ID
+- `avatar` (string): The guild-specific avatar hash
+- `format` (optional): `png`, `jpg`, `webp`, or `gif`
+- `params.size` (optional): Image size in pixels
+
+### guildMemberBanner
+
+Generates a CDN URL for a guild member's server-specific banner.
+
+```typescript
+import { guildMemberBanner } from '@discordkit/client';
+
+const url = guildMemberBanner({
+  guild: '123456789012345678',
+  user: '987654321098765432',
+  banner: 'guild_banner_hash',
+  format: 'webp',
+  params: { size: 512 }
+});
+```
+
+**Parameters:**
+- `guild` (string): The guild's snowflake ID
+- `user` (string): The user's snowflake ID
+- `banner` (string): The guild-specific banner hash
+- `format` (optional): `png`, `jpg`, `webp`, or `gif`
+- `params.size` (optional): Image size in pixels
+
+## Application Assets
+
+### applicationIcon
+
+Generates a CDN URL for an application's icon.
+
+```typescript
+import { applicationIcon } from '@discordkit/client';
+
+const url = applicationIcon({
+  application: '123456789012345678',
+  icon: 'app_icon_hash',
+  format: 'png',
+  params: { size: 256 }
+});
+```
+
+**Parameters:**
+- `application` (string): The application's snowflake ID
+- `icon` (string): The icon hash from the application object
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+### applicationCover
+
+Generates a CDN URL for an application's cover image.
+
+```typescript
+import { applicationCover } from '@discordkit/client';
+
+const url = applicationCover({
+  application: '123456789012345678',
+  cover: 'cover_image_hash',
+  format: 'webp',
+  params: { size: 1024 }
+});
+```
+
+**Parameters:**
+- `application` (string): The application's snowflake ID
+- `cover` (string): The cover image hash
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+### applicationAsset
+
+Generates a CDN URL for an application's asset (e.g., Rich Presence assets).
+
+```typescript
+import { applicationAsset } from '@discordkit/client';
+
+const url = applicationAsset({
+  application: '123456789012345678',
+  asset: '987654321098765432',
+  format: 'png',
+  params: { size: 512 }
+});
+```
+
+**Parameters:**
+- `application` (string): The application's snowflake ID
+- `asset` (string): The asset's snowflake ID
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+### achievementIcon
+
+Generates a CDN URL for an application achievement's icon.
+
+```typescript
+import { achievementIcon } from '@discordkit/client';
+
+const url = achievementIcon({
+  application: '123456789012345678',
+  achievement: '987654321098765432',
+  icon: 'achievement_icon_hash',
+  format: 'png',
+  params: { size: 128 }
+});
+```
+
+**Parameters:**
+- `application` (string): The application's snowflake ID
+- `achievement` (string): The achievement's snowflake ID
+- `icon` (string): The icon hash from the achievement object
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+### storePageAsset
+
+Generates a CDN URL for an application store page asset.
+
+```typescript
+import { storePageAsset } from '@discordkit/client';
+
+const url = storePageAsset({
+  application: '123456789012345678',
+  asset: '987654321098765432',
+  format: 'webp',
+  params: { size: 1024 }
+});
+```
+
+**Parameters:**
+- `application` (string): The application's snowflake ID
+- `asset` (string): The asset's snowflake ID
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+## Emoji and Sticker Assets
+
+### customEmoji
+
+Generates a CDN URL for a custom emoji.
+
+```typescript
+import { customEmoji } from '@discordkit/client';
+
+const url = customEmoji({
+  emoji: '123456789012345678',
+  format: 'png',
+  params: { size: 64 }
+});
+// https://cdn.discordapp.com/emojis/123456789012345678.png?size=64
+```
+
+**Parameters:**
+- `emoji` (string): The emoji's snowflake ID
+- `format` (optional): `png`, `jpg`, `webp`, or `gif`
+- `params.size` (optional): Image size in pixels
+
+### sticker
+
+Generates a CDN URL for a sticker.
+
+```typescript
+import { sticker } from '@discordkit/client';
+
+const url = sticker({
+  sticker: '123456789012345678',
+  format: 'png'
+});
+```
+
+**Parameters:**
+- `sticker` (string): The sticker's snowflake ID
+- `format` (optional): `png`, `json`, or `gif`
+
+**Note:** GIF stickers use a different CDN endpoint (`media.discordapp.net`) and don't support size parameters.
+
+### stickerPackBanner
+
+Generates a CDN URL for a sticker pack's banner image.
+
+```typescript
+import { stickerPackBanner } from '@discordkit/client';
+
+const url = stickerPackBanner({
+  banner: '123456789012345678',
+  format: 'png',
+  params: { size: 512 }
+});
+```
+
+**Parameters:**
+- `banner` (string): The banner asset's snowflake ID
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+## Other Assets
+
+### roleIcon
+
+Generates a CDN URL for a role's icon.
+
+```typescript
+import { roleIcon } from '@discordkit/client';
+
+const url = roleIcon({
+  role: '123456789012345678',
+  icon: 'role_icon_hash',
+  format: 'png',
+  params: { size: 64 }
+});
+```
+
+**Parameters:**
+- `role` (string): The role's snowflake ID
+- `icon` (string): The icon hash from the role object
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+### teamIcon
+
+Generates a CDN URL for a team's icon.
+
+```typescript
+import { teamIcon } from '@discordkit/client';
+
+const url = teamIcon({
+  team: '123456789012345678',
+  icon: 'team_icon_hash',
+  format: 'webp',
+  params: { size: 256 }
+});
+```
+
+**Parameters:**
+- `team` (string): The team's snowflake ID
+- `icon` (string): The icon hash from the team object
+- `format` (optional): `png`, `jpg`, or `webp` (GIF not supported)
+- `params.size` (optional): Image size in pixels
+
+### avatarDecoration
+
+Generates a CDN URL for an avatar decoration preset.
+
+```typescript
+import { avatarDecoration } from '@discordkit/client';
+
+const url = avatarDecoration({
+  asset: '123456789012345678',
+  params: { size: 128 }
+});
+```
+
+**Parameters:**
+- `asset` (string): The decoration asset's snowflake ID
+- `params.size` (optional): Image size in pixels
+
+**Note:** Avatar decoration presets are always PNG format.
+
+## Format Support Summary
+
+| Asset Type | PNG | JPG | WebP | GIF |
+|-----------|-----|-----|------|-----|
+| User avatars/banners | ✓ | ✓ | ✓ | ✓ |
+| Guild icons/banners | ✓ | ✓ | ✓ | ✓ |
+| Guild splashes | ✓ | ✓ | ✓ | ✗ |
+| Guild member avatars/banners | ✓ | ✓ | ✓ | ✓ |
+| Application icons/covers | ✓ | ✓ | ✓ | ✗ |
+| Custom emojis | ✓ | ✓ | ✓ | ✓ |
+| Stickers | ✓ | ✗ | ✗ | ✓ |
+| Role/Team icons | ✓ | ✓ | ✓ | ✗ |
+| Avatar decorations | ✓ | ✗ | ✗ | ✗ |
+| Default avatars | ✓ | ✗ | ✗ | ✗ |
+
+## Best Practices
+
+### Choose the Right Format
+
+- Use **WebP** for the best compression and quality balance (when supported)
+- Use **GIF** only when you need animated images
+- Use **PNG** for maximum compatibility
+- Use **JPG** when you need broad support for static images
+
+### Optimize Image Sizes
+
+Request the smallest size that meets your needs to reduce bandwidth and improve loading times:
+
+```typescript
+// For small thumbnails
+userAvatar({ user, avatar, params: { size: 64 } })
+
+// For profile displays
+userAvatar({ user, avatar, params: { size: 256 } })
+
+// For large displays
+userAvatar({ user, avatar, params: { size: 512 } })
+```
+
+### Handle Missing Assets
+
+Always check if the asset hash exists before generating URLs:
+
+```typescript
+const avatarUrl = user.avatar
+  ? userAvatar({ user: user.id, avatar: user.avatar, format: 'webp' })
+  : defaultUserAvatar({ index: String(Number(user.id) % 5) });
+```
+
+### Animated Images
+
+Animated avatars have hashes starting with `a_`. Use GIF format to display animations:
+
+```typescript
+const format = avatar.startsWith('a_') ? 'gif' : 'webp';
+const url = userAvatar({ user, avatar, format });
+```
